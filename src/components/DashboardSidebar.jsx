@@ -1,0 +1,212 @@
+import { Box, useMediaQuery } from "@mui/material";
+import Image from "next/image";
+import { useRouter } from "next/router";
+import { useState } from "react";
+import LayoutDrawer from "./LayoutDrawer";
+import {
+  BadgeValue,
+  BulletIcon,
+  ChevronLeftIcon,
+  ExternalLink,
+  ListIconWrapper,
+  ListLabel,
+  NavItemButton,
+  NavWrapper,
+  SidebarWrapper,
+  StyledText,
+} from "./LayoutStyledComponents";
+import { navigations } from "./NavigationList";
+import Scrollbar from "./Scrollbar";
+import SidebarAccordion from "./SidebarAccordion";
+import { FlexBetween } from "./flex-box";
+const TOP_HEADER_AREA = 70; // -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+const DashboardSidebar = (props) => {
+  const {
+    sidebarCompact,
+    showMobileSideBar,
+    setShowMobileSideBar,
+    setSidebarCompact,
+  } = props;
+  const router = useRouter();
+  const [onHover, setOnHover] = useState(false);
+  const downLg = useMediaQuery((theme) => theme.breakpoints.down("lg")); // side hover when side bar is compacted
+
+  const COMPACT = sidebarCompact && !onHover ? 1 : 0; // handle active current page
+
+  const activeRoute = (path) => (router.pathname === path ? 1 : 0); // handle navigate to another route and close sidebar drawer in mobile device
+
+  const handleNavigation = async (path) => {
+    // if (path === "/logout") {
+    //   router.push("/logout");
+    //   return;
+    // }
+    router.push(path);
+    setShowMobileSideBar();
+  };
+
+  const renderLevels = (data) => {
+    return data.map((item, index) => {
+      if (item.type === "label")
+        return (
+          <ListLabel
+            key={index}
+            compact={COMPACT}
+            sx={{
+              borderBottom: "1px dashed #67b346",
+              mb: 2,
+              fontSize: 14,
+              letterSpacing: 1.2,
+            }}
+          >
+            {item.label}
+          </ListLabel>
+        );
+
+      if (item.children) {
+        return (
+          <SidebarAccordion key={index} item={item} sidebarCompact={COMPACT}>
+            {renderLevels(item.children)}
+          </SidebarAccordion>
+        );
+      } else if (item.type === "extLink") {
+        return (
+          <ExternalLink
+            key={index}
+            href={item.path}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <NavItemButton key={item.name} name="child" active={0}>
+              {item.icon ? (
+                <ListIconWrapper>
+                  <item.icon />
+                </ListIconWrapper>
+              ) : (
+                <span className="item-icon icon-text">{item.iconText}</span>
+              )}
+
+              <StyledText compact={COMPACT}>{item.name}</StyledText>
+
+              {/* <Box mx="auto" /> */}
+
+              {item.badge && (
+                <BadgeValue compact={COMPACT}>{item.badge.value}</BadgeValue>
+              )}
+            </NavItemButton>
+          </ExternalLink>
+        );
+      } else {
+        return (
+          <Box key={index}>
+            <NavItemButton
+              key={item.name}
+              className="navItem"
+              active={activeRoute(item.path)}
+              onClick={() => handleNavigation(item.path)}
+            >
+              {item?.icon ? (
+                <ListIconWrapper>
+                  <item.icon />
+                </ListIconWrapper>
+              ) : (
+                <BulletIcon active={activeRoute(item.path)} />
+              )}
+
+              <StyledText compact={COMPACT}>{item.name}</StyledText>
+
+              {/* <Box mx="auto" /> */}
+
+              {item.badge && (
+                <BadgeValue compact={COMPACT}>{item.badge.value}</BadgeValue>
+              )}
+            </NavItemButton>
+          </Box>
+        );
+      }
+    });
+  };
+
+  const content = (
+    <Scrollbar
+      autoHide
+      clickOnTrack={false}
+      sx={{
+        overflowX: "hidden",
+        maxHeight: `calc(100vh - ${TOP_HEADER_AREA}px)`,
+      }}
+    >
+      <NavWrapper compact={sidebarCompact}>
+        {renderLevels(navigations)}
+      </NavWrapper>
+    </Scrollbar>
+  );
+
+  if (downLg) {
+    return (
+      <LayoutDrawer
+        open={showMobileSideBar ? true : false}
+        onClose={setShowMobileSideBar}
+      >
+        <Box p={2} maxHeight={TOP_HEADER_AREA}>
+          <Image
+            alt="Logo"
+            width={105}
+            height={50}
+            src="/assets/images/logo.png"
+            style={{
+              marginLeft: 8,
+            }}
+          />
+        </Box>
+
+        {content}
+      </LayoutDrawer>
+    );
+  }
+
+  return (
+    <SidebarWrapper
+      sx={{
+        borderBottom: "20px solid #67b346",
+        borderTop: "10px solid #67b346",
+      }}
+      compact={sidebarCompact ? 1 : 0}
+      onMouseEnter={() => setOnHover(true)}
+      onMouseLeave={() => sidebarCompact && setOnHover(false)}
+    >
+      <FlexBetween
+        p={2}
+        maxHeight={TOP_HEADER_AREA}
+        justifyContent={COMPACT ? "center" : "space-between"}
+      >
+        {/* <Avatar
+          src={
+            COMPACT
+              ? "/assets/images/logoCompact.png"
+              : "/assets/images/logo.png"
+          }
+          sx={{
+            borderRadius: 0,
+            width: "85%",
+            height: "fit-content",
+            marginLeft: COMPACT ? 0 : 1,
+            padding: COMPACT ? 0 : "0px 16px",
+          }}
+        /> */}
+
+        <ChevronLeftIcon
+          color="disabled"
+          compact={COMPACT}
+          onClick={setSidebarCompact}
+          sidebarcompact={sidebarCompact ? 1 : 0}
+        />
+      </FlexBetween>
+
+      {content}
+    </SidebarWrapper>
+  );
+};
+
+export default DashboardSidebar;
