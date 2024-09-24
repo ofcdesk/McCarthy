@@ -1,3 +1,4 @@
+import { Search } from "@mui/icons-material";
 import CloseIcon from "@mui/icons-material/Close";
 import {
   Box,
@@ -12,6 +13,7 @@ import Container from "@mui/material/Container";
 
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import FormControl from "@mui/material/FormControl";
 import InputBase from "@mui/material/InputBase";
@@ -51,7 +53,7 @@ const ToggleWrapper = styled(FlexRowCenter)(({ theme }) => ({
   borderRadius: "8px",
   backgroundColor: theme.palette.grey[100],
 }));
-const StyledInputBase = styled(InputBase)(({ theme }) => ({
+export const StyledInputBase = styled(InputBase)(({ theme }) => ({
   width: 300,
   padding: "5px 10px",
   borderRadius: "8px",
@@ -88,7 +90,6 @@ const DashboardNavbar = (props) => {
 
   const handleSelectCompaniesClose = (event, reason) => {
     if (reason !== "backdropClick") {
-      setCompaniesSelectOpen(false);
       setCompaniesSelectorOpen(false);
       setFetchingCompanies(false);
     }
@@ -197,7 +198,7 @@ const DashboardNavbar = (props) => {
         >
           <CloseIcon />
         </IconButton>
-        {/* <DialogContent sx={{ minWidth: 350 }}>
+        <DialogContent sx={{ minWidth: 350 }}>
           <Box
             component="form"
             sx={{
@@ -208,7 +209,7 @@ const DashboardNavbar = (props) => {
             }}
           >
             <StyledInputBase
-              placeholder="Procore Company name..."
+              placeholder="Company name..."
               value={searchCompany}
               onChange={(event) => {
                 setSearchCompany(event.target.value);
@@ -223,7 +224,7 @@ const DashboardNavbar = (props) => {
               }
             />
             <FormControl sx={{ m: 1 }}>
-              <InputLabel id="select-company-label">Procore Company</InputLabel>
+              <InputLabel id="select-company-label">Company</InputLabel>
               <Box sx={{ m: 1, position: "relative" }}>
                 <Select
                   input={<StyledSelect />}
@@ -234,7 +235,7 @@ const DashboardNavbar = (props) => {
                   onChange={handleCompanyChange}
                   disabled={isFetchingCompanies}
                 >
-                  {companies?.map((value, index) => {
+                  {companies.map((value, index) => {
                     if (
                       value.name
                         .toLowerCase()
@@ -264,7 +265,7 @@ const DashboardNavbar = (props) => {
               </Box>
             </FormControl>
           </Box>
-        </DialogContent> */}
+        </DialogContent>
         <DialogActions>
           <Button
             onClick={async () => {
@@ -296,7 +297,7 @@ const DashboardNavbar = (props) => {
 
           <FlexBox alignItems="center">
             <FormControl>
-              <InputLabel id="select-company-label">Procore Company</InputLabel>
+              <InputLabel id="select-company-label">Company</InputLabel>
               <Box sx={{ m: 1, position: "relative" }}>
                 <Select
                   input={<StyledSelect />}
@@ -304,21 +305,21 @@ const DashboardNavbar = (props) => {
                   id="select-company"
                   value={selectedCompany}
                   displayEmpty
-                  disabled={true}
+                  disabled={isFetchingCompanies}
                   onOpen={async () => {
                     if (isFetchingCompanies) {
                       return;
                     }
                     setFetchingCompanies(true);
                     await getCompaniesList();
-                    setCompaniesSelectorOpen(false);
-                    setCompaniesSelectOpen(true);
+                    setCompaniesSelectorOpen(true);
+                    setCompaniesSelectOpen(false);
                   }}
                   open={isCompaniesSelectorOpen}
                   onChange={handleCompanyChange}
                   onClose={handleSelectCompaniesClose}
                 >
-                  {companies?.map((value, index) => {
+                  {companies.map((value, index) => {
                     return (
                       <MenuItem value={value.id} key={value.id}>
                         {value.name}

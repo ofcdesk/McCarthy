@@ -11,6 +11,11 @@ export const navigations = [
     path: "/",
   },
   {
+    name: "FTP Servers",
+    icon: duotone.Session,
+    path: "/ftp-servers",
+  },
+  {
     name: "Settings",
     icon: duotone.SiteSetting,
     children: [

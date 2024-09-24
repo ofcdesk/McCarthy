@@ -11,17 +11,44 @@ import { Fragment, ReactNode, useEffect, useState } from "react";
 import DashboardNavbar from "../components/DashboardNavbar";
 import DashboardSidebar from "../components/DashboardSidebar"; // styled components
 import MuiAutosuggest from "../components/Mui-AutoSuggest";
-import { H2, H3, H4 } from "../components/Typography";
+import { H2 } from "../components/Typography";
 
 import { useCookies } from "react-cookie";
 
 import Onboarding from "@/components/Onboarding";
 import { useAppContext } from "@/contexts/appContext";
 import { useRouter } from "next/router";
+import { Server } from "./ftp-servers";
+
+export type ACCFolder = {
+  type: string;
+  id: string;
+  attributes: {
+    name: string;
+    parentFolder: string;
+    folderPath: string;
+    folderType: string;
+    folderId: string;
+    folderPathId: string;
+    folderPathName: string;
+    folderPathType: string;
+    folderPathParentFolder: string;
+  };
+  links: {
+    self: {
+      href: string;
+    };
+    webView: {
+      href: string;
+    };
+  };
+};
 
 export type Connection = {
   procoreProject?: ProcoreProject | null;
-  accProjects?: ACCProject[] | null;
+  accProject?: ACCProject | null;
+  accFolder?: ACCFolder | null;
+  server?: Server | null;
 };
 
 export type ProcoreProject = {
@@ -217,6 +244,8 @@ Home.getLayout = function getLayout(page: ReactNode) {
 };
 
 export default function Home() {
+  const [servers, setServers] = useState<Server[]>([]);
+
   const { state, dispatch } = useAppContext();
 
   const [settedUp, setSettedUp] = useState<
@@ -235,22 +264,20 @@ export default function Home() {
     });
 
   useEffect(() => {
-    // if (!cookies.procore_token) {
-    //   setSettedUp("missing_procore");
-    //   console.log("Missing Procore");
-    //   router.push("/api/oauth/procore/login");
-    // } else
-
-    if (!cookies.acc_token) {
+    if (!cookies.procore_token) {
+      setSettedUp("missing_procore");
+      console.log("Missing Procore");
+      router.push("/api/oauth/procore/login");
+    } else if (!cookies.acc_token) {
       setSettedUp("missing_acc");
       console.log("MISSING ACC");
       // router.push("/api/acc/auth/login");
     } else {
-      // fetch("/api/acc/getProjects").then((res) => {
-      //   res.json().then((data) => {
-      //     setStateAccProjects(data);
-      //   });
-      // });
+      fetch("/api/acc/getProjects").then((res) => {
+        res.json().then((data) => {
+          setStateAccProjects(data);
+        });
+      });
       setSettedUp(true);
     }
   }, []);
@@ -307,6 +334,25 @@ export default function Home() {
             setConnections(data);
           }
         });
+
+      fetch("/api/servers/getServers?companyId=" + state.selectedCompanyId)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.length < 1) {
+            setServers(
+              servers.concat({
+                ip: "",
+                name: "",
+                id: "",
+                serverPort: undefined,
+                username: undefined,
+                password: undefined,
+              } as Server)
+            );
+          } else {
+            setServers(data);
+          }
+        });
     }
   }, [state.selectedCompanyId]);
 
@@ -344,13 +390,20 @@ export default function Home() {
         >
           {/* @ts-ignore */}
           <H2>How to use?</H2>
-          This tool automatically syncs projects between Procore and ACC, in a
-          case the system does not find the desired project, you can change it
+          This tool automatically syncs projects between Procore ACC, and FTP in
+          a case the system does not find the desired project, you can change it
           on this screen selecting an Procore and a ACC project in the same
           line. <br />
           <br />
-          The left side of the screen is <b>locked</b> to Procore projects, and
-          the right side is up for editing of ACC projects.
+          <strong>Procore Project:</strong> Select the Procore project you want
+          to sync. <br />
+          <strong>ACC Project:</strong> Select the ACC project you want to sync
+          with the Procore project. <br />
+          <br />
+          <strong>FTP Server:</strong> Select the FTP server you want to sync
+          with the ACC Files. <br />
+          <strong>ACC Folder:</strong> Select the ACC folder you want to sync
+          send the FTP Files. <br />
         </Container>
         <div
           style={{
@@ -366,7 +419,7 @@ export default function Home() {
               flexGrow: 1,
             }}
           >
-            <h3 style={{ textAlign: "center" }}>Procore</h3>
+            <h3 style={{ textAlign: "center" }}>Projects</h3>
           </div>
 
           <div
@@ -374,7 +427,7 @@ export default function Home() {
               flexGrow: 1,
             }}
           >
-            <h3 style={{ textAlign: "center" }}>ACC</h3>
+            <h3 style={{ textAlign: "center" }}>Storage</h3>
           </div>
         </div>
         <div
@@ -425,14 +478,52 @@ export default function Home() {
                     input={connection.procoreProject}
                   />
                 </div>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "1.2rem",
+                    padding: "1rem",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "1rem",
+                      height: "100%", // Ensure this is consistent on both sides
+                      gap: "1.2rem",
+                    }}
+                  >
+                    <MuiAutosuggest
+                      cohortIndex={index}
+                      label={"ACC Project"}
+                      options={accProjects.map((p) => p.attributes.name)}
+                      value={connection.accProject?.attributes.name ?? ""}
+                      handler={(e: any, value: any) => {
+                        const newConnections = [...connections];
+
+                        newConnections[index].accProject = accProjects.find(
+                          (p) => p.attributes.name === value
+                        );
+
+                        setConnections(newConnections);
+                      }}
+                      input={connection.procoreProject}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div>
                 <SettingsEthernetIcon
                   color={
                     !connection.procoreProject ||
-                    !connection.accProjects?.length ||
-                    connection.accProjects?.length < 1 ||
+                    !connection.accProject ||
                     connections.filter(
                       (c) =>
                         c.procoreProject?.id === connection.procoreProject?.id
@@ -469,44 +560,114 @@ export default function Home() {
                       padding: "1rem",
                     }}
                   >
-                    <Autocomplete
-                      multiple
-                      id="tags-standard"
-                      options={accProjects.map((p) => p.attributes.name)}
-                      getOptionLabel={(option) => option}
-                      defaultValue={connection.accProjects?.map(
-                        (p) => p.attributes.name
-                      )}
-                      sx={{ width: "400px" }}
-                      onChange={(e, value) => {
+                    <MuiAutosuggest
+                      cohortIndex={index}
+                      label={"FTP Server"}
+                      options={servers.map((p) => p.name)}
+                      value={connection?.server?.name ?? ""}
+                      handler={(e: any, value: any) => {
                         const newConnections = [...connections];
 
-                        // make it based on connections index
-                        newConnections[index].accProjects = accProjects.filter(
-                          (p) => value.includes(p.attributes.name)
+                        newConnections[index].server = servers.find(
+                          (p) => p.name === value
                         );
 
                         setConnections(newConnections);
                       }}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          label={"ACC Projects"}
-                          variant="outlined"
-                        />
-                      )}
+                      input={connection.procoreProject}
                     />
                     <Button
                       color="error"
                       variant="contained"
-                      onClick={() => {
-                        const newConnections = [...connections];
-                        newConnections.splice(index, 1);
-                        setConnections(newConnections);
+                      sx={{
+                        visibility: "hidden",
                       }}
                     >
                       Delete
                     </Button>
+                  </div>
+                </div>
+                <div
+                  style={{
+                    flexGrow: 1,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "1rem",
+                      gap: "1.2rem",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "1.2rem",
+                        padding: "1rem",
+                      }}
+                    >
+                      <Autocomplete
+                        id="tags-standard"
+                        options={accProjects.map((p) => p.attributes.name)}
+                        getOptionLabel={(option) => option}
+                        disabled={!connection.accProject}
+                        sx={{ width: "400px" }}
+                        defaultValue={connection.accProject?.attributes.name}
+                        onChange={(e, value) => {
+                          const newConnections = [...connections];
+
+                          newConnections[index].accFolder = {
+                            type: "folders",
+                            id: "1",
+                            attributes: {
+                              name: value ?? "",
+                              parentFolder: "1",
+                              folderPath: "1",
+                              folderType: "1",
+                              folderId: "1",
+                              folderPathId: "1",
+                              folderPathName: "1",
+                              folderPathType: "1",
+                              folderPathParentFolder: "1",
+                            },
+                            links: {
+                              self: {
+                                href: "1",
+                              },
+                              webView: {
+                                href: "1",
+                              },
+                            },
+                          };
+
+                          setConnections(newConnections);
+                        }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label={"ACC Folder"}
+                            variant="outlined"
+                          />
+                        )}
+                      />
+                      <Button
+                        color="error"
+                        variant="contained"
+                        onClick={() => {
+                          const newConnections = [...connections];
+                          newConnections.splice(index, 1);
+                          setConnections(newConnections);
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -555,30 +716,10 @@ export default function Home() {
     </>
   ) : (
     <>
-      {/* @ts-ignore */}
-      <H3>Sync - Devbox</H3>
-      {/* @ts-ignore */}
-      <H4>Syncs OFCDesk Development ACC Files with FTP</H4>
-      <Button
-        variant="contained"
-        color="info"
-        // run sync button
-        onClick={() => {
-          fetch("/api/syncFTP", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({}),
-          }).then((res) => {
-            res.json().then((data) => {
-              console.log(data);
-            });
-          });
-        }}
-      >
-        Sync Dev
-      </Button>
+      <main>
+        {/*@ts-ignore*/}
+        <H2>Select a Company</H2>
+      </main>
     </>
   );
 }

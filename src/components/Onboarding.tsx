@@ -9,9 +9,9 @@ export default function Onboarding({ step, selectedCompanyId }: Props) {
   return (
     <div className="rounded-xl w-96 h-96">
       <Stepper activeStep={step == "missing_procore" ? 0 : 1} alternativeLabel>
-        {/* <Step key="Configure Procore">
+        <Step key="Configure Procore">
           <StepLabel>Configure Procore</StepLabel>
-        </Step> */}
+        </Step>
         <Step key="Configure ACC">
           <StepLabel>Configure ACC</StepLabel>
         </Step>
@@ -31,7 +31,7 @@ export default function Onboarding({ step, selectedCompanyId }: Props) {
       <Button
         color="success"
         variant="contained"
-        // disabled={step == "missing_acc" && !selectedCompanyId}
+        disabled={step == "missing_acc" && !selectedCompanyId}
         href={
           step == "missing_procore"
             ? "/api/oauth/procore/login"
