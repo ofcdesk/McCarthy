@@ -407,6 +407,36 @@ export default function Home() {
         </Container>
         <div
           style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            padding: "1rem",
+          }}
+        >
+          <Button
+            color="success"
+            variant="contained"
+            onClick={() => {
+              fetch("/api/syncFTP", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  connections,
+                  servers,
+                }),
+              }).then((res) => {
+                res.json().then((data) => {
+                  console.log(data);
+                });
+              });
+            }}
+          >
+            Sync Now
+          </Button>
+        </div>
+        <div
+          style={{
             gap: "1rem",
             flexDirection: "row",
             display: "flex",
@@ -430,6 +460,7 @@ export default function Home() {
             <h3 style={{ textAlign: "center" }}>Storage</h3>
           </div>
         </div>
+
         <div
           style={{
             paddingBottom: "5rem",
@@ -656,9 +687,6 @@ export default function Home() {
                           />
                         )}
                       />
-                      <Button color="success" variant="contained">
-                        Sync
-                      </Button>
                       <Button
                         color="error"
                         variant="contained"
