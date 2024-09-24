@@ -656,6 +656,9 @@ export default function Home() {
                           />
                         )}
                       />
+                      <Button color="success" variant="contained">
+                        Sync
+                      </Button>
                       <Button
                         color="error"
                         variant="contained"
