@@ -1,12 +1,5 @@
 import SettingsEthernetIcon from "@mui/icons-material/SettingsEthernet";
-import {
-  Autocomplete,
-  Box,
-  Button,
-  Container,
-  styled,
-  TextField,
-} from "@mui/material";
+import { Box, Button, Container, styled } from "@mui/material";
 import { Fragment, ReactNode, useEffect, useState } from "react";
 import DashboardNavbar from "../components/DashboardNavbar";
 import DashboardSidebar from "../components/DashboardSidebar"; // styled components
@@ -17,6 +10,7 @@ import { useCookies } from "react-cookie";
 
 import Onboarding from "@/components/Onboarding";
 import { useAppContext } from "@/contexts/appContext";
+import { Delete } from "@mui/icons-material";
 import { useRouter } from "next/router";
 import { Server } from "./ftp-servers";
 
@@ -449,7 +443,7 @@ export default function Home() {
               flexGrow: 1,
             }}
           >
-            <h3 style={{ textAlign: "center" }}>Projects</h3>
+            <h3 style={{ textAlign: "center" }}>Procore</h3>
           </div>
 
           <div
@@ -457,7 +451,15 @@ export default function Home() {
               flexGrow: 1,
             }}
           >
-            <h3 style={{ textAlign: "center" }}>Storage</h3>
+            <h3 style={{ textAlign: "center" }}>ACC</h3>
+          </div>
+
+          <div
+            style={{
+              flexGrow: 1,
+            }}
+          >
+            <h3 style={{ textAlign: "center" }}>Server</h3>
           </div>
         </div>
 
@@ -509,43 +511,74 @@ export default function Home() {
                     input={connection.procoreProject}
                   />
                 </div>
+              </div>
+
+              <SettingsEthernetIcon
+                color={
+                  !connection.procoreProject ||
+                  !connection.accProject ||
+                  connections.filter(
+                    (c) =>
+                      c.procoreProject?.id === connection.procoreProject?.id
+                  ).length > 1
+                    ? "error"
+                    : "success"
+                }
+                fontSize="large"
+              />
+
+              <div
+                style={{
+                  flexGrow: 1,
+                }}
+              >
                 <div
                   style={{
                     display: "flex",
-                    flexDirection: "row",
+                    flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: "1.2rem",
                     padding: "1rem",
+                    gap: "1.2rem",
                   }}
                 >
                   <div
                     style={{
                       display: "flex",
-                      flexDirection: "column",
+                      flexDirection: "row",
                       alignItems: "center",
                       justifyContent: "center",
-                      padding: "1rem",
-                      height: "100%", // Ensure this is consistent on both sides
                       gap: "1.2rem",
+                      padding: "1rem",
                     }}
                   >
-                    <MuiAutosuggest
-                      cohortIndex={index}
-                      label={"ACC Project"}
-                      options={accProjects.map((p) => p.attributes.name)}
-                      value={connection.accProject?.attributes.name ?? ""}
-                      handler={(e: any, value: any) => {
-                        const newConnections = [...connections];
-
-                        newConnections[index].accProject = accProjects.find(
-                          (p) => p.attributes.name === value
-                        );
-
-                        setConnections(newConnections);
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "1.2rem",
+                        padding: "1rem",
                       }}
-                      input={connection.procoreProject}
-                    />
+                    >
+                      <MuiAutosuggest
+                        cohortIndex={index}
+                        label={"ACC Server"}
+                        options={accProjects.map((p) => p.attributes.name)}
+                        value={connection.accProject?.attributes.name ?? ""}
+                        handler={(e: any, value: any) => {
+                          const newConnections = [...connections];
+
+                          newConnections[index].accProject = accProjects.find(
+                            (p) => p.attributes.name === value
+                          );
+
+                          setConnections(newConnections);
+                        }}
+                        input={connection.accProject}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -607,101 +640,24 @@ export default function Home() {
                       }}
                       input={connection.procoreProject}
                     />
-                    <Button
-                      color="error"
-                      variant="contained"
-                      sx={{
-                        visibility: "hidden",
-                      }}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                </div>
-                <div
-                  style={{
-                    flexGrow: 1,
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "1rem",
-                      gap: "1.2rem",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "1.2rem",
-                        padding: "1rem",
-                      }}
-                    >
-                      <Autocomplete
-                        id="tags-standard"
-                        options={accProjects.map((p) => p.attributes.name)}
-                        getOptionLabel={(option) => option}
-                        disabled={!connection.accProject}
-                        sx={{ width: "400px" }}
-                        defaultValue={connection.accProject?.attributes.name}
-                        onChange={(e, value) => {
-                          const newConnections = [...connections];
-
-                          newConnections[index].accFolder = {
-                            type: "folders",
-                            id: "1",
-                            attributes: {
-                              name: value ?? "",
-                              parentFolder: "1",
-                              folderPath: "1",
-                              folderType: "1",
-                              folderId: "1",
-                              folderPathId: "1",
-                              folderPathName: "1",
-                              folderPathType: "1",
-                              folderPathParentFolder: "1",
-                            },
-                            links: {
-                              self: {
-                                href: "1",
-                              },
-                              webView: {
-                                href: "1",
-                              },
-                            },
-                          };
-
-                          setConnections(newConnections);
-                        }}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label={"ACC Folder"}
-                            variant="outlined"
-                          />
-                        )}
-                      />
-                      <Button
-                        color="error"
-                        variant="contained"
-                        onClick={() => {
-                          const newConnections = [...connections];
-                          newConnections.splice(index, 1);
-                          setConnections(newConnections);
-                        }}
-                      >
-                        Delete
-                      </Button>
-                    </div>
                   </div>
                 </div>
               </div>
+
+              <Button
+                variant="contained"
+                color="error"
+                onClick={() => {
+                  const newConnections = [...connections];
+                  newConnections.splice(index, 1);
+                  setConnections(newConnections);
+                }}
+                sx={{
+                  padding: "1rem",
+                }}
+              >
+                <Delete />
+              </Button>
             </div>
           ))}
         </div>
