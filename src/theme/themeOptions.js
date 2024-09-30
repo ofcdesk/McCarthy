@@ -1,19 +1,7 @@
 import { components } from "./components";
-import { primary, themeColors } from "./themeColors";
 import { typography } from "./typography";
-/********************************************
- * You can delete themeOptions.ts file and
- * rename this file to `themeOptions.ts`
- * Follow the documentation for more details
- *********************************************/
+import { primary, themeColors } from "./themeColors";
 
-const THEMES = {
-  GIFT: "GIFT",
-  HEALTH: "HEALTH",
-  DEFAULT: "DEFAULT",
-  GROCERY: "GROCERY",
-  FURNITURE: "FURNITURE",
-};
 const breakpoints = {
   values: {
     xs: 0,
@@ -24,20 +12,17 @@ const breakpoints = {
   },
 };
 const themesOptions = {
-  [THEMES.DEFAULT]: {
-    typography,
-    breakpoints,
-    components: { ...components },
-    palette: {
-      primary: { ...primary, light: primary[100] },
-      ...themeColors,
-    },
+  typography,
+  breakpoints,
+  components: { ...components },
+  palette: {
+    ...themeColors,
   },
 };
 
 const themeOptions = (publicRuntimeConfig, pathname) => {
   // YOU CAN SET ANOTHER THEME HERE E.G. [THEMES.GROCERY] OR [THEMES.FURNITURE] ETC.
-  let themeOptions = themesOptions[THEMES.DEFAULT];
+  let themeOptions = themesOptions;
   return themeOptions;
 };
 

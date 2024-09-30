@@ -1,22 +1,9 @@
 import { dark, grey } from "./themeColors";
 import { fontFamily, fontSize } from "./typography"; // ========================================================
-// import CandaraWoff from "assets/fonts/webfonts/Candara.woff";
 
 // =========================================================
 export const components = {
   MuiCssBaseline: {
-    "@global": {
-      "@font-face": `font-family: "Candara";
-      src: url("assets/fonts/webfonts/e662339992c4abf5b43f537391bd3169.eot");
-      src: url("assets/fonts/webfonts/e662339992c4abf5b43f537391bd3169.eot?#iefix")format("embedded-opentype"),
-          url("assets/fonts/webfonts/e662339992c4abf5b43f537391bd3169.woff")format("woff"),
-          url("assets/fonts/webfonts/e662339992c4abf5b43f537391bd3169.woff2")format("woff2"),
-          url("assets/fonts/webfonts/e662339992c4abf5b43f537391bd3169.ttf")format("truetype"),
-          url("assets/fonts/webfonts/e662339992c4abf5b43f537391bd3169.svg#Candara")format("svg");
-      font-weight:normal;
-      font-style:normal;
-      font-display:swap;`,
-    },
     styleOverrides: (theme) => ({
       html: {
         scrollBehavior: "smooth",
@@ -92,38 +79,15 @@ export const components = {
       },
     },
   },
-  MuiTextField: {
-    defaultProps: {
-      size: "small",
-      variant: "outlined",
-    },
-    styleOverrides: {
-      root: ({ ownerState }) => ({
-        ...(ownerState.color === "info" && {
-          "& .MuiOutlinedInput-root": {
-            borderRadius: "8px",
-            fontWeight: 600,
-          },
-          "& .MuiOutlinedInput-notchedOutline": {
-            borderColor: grey[300],
-          },
-        }),
-      }),
-    },
-  },
   MuiButton: {
     styleOverrides: {
       root: ({ ownerState }) => ({
         minWidth: 0,
         minHeight: 0,
         fontWeight: 600,
-        borderRadius: 0,
-        textTransform: "uppercase",
-        ...(ownerState.color === "info" && {
+        textTransform: "capitalize",
+        ...(ownerState.color === "primary" && {
           borderRadius: "8px",
-        }),
-        ...(ownerState.variant === "contained" && {
-          color: "#fff",
         }),
         ...(ownerState.color === "dark" && {
           color: "#fff",

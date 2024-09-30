@@ -17,15 +17,15 @@ export const grey = {
   100: "#F6F9FC",
 };
 export const primary = {
-  100: "#E2EA3F",
-  200: "#DAE53D",
-  300: "#D5E03C",
-  400: "#D0DB3B",
-  500: "#67b346",
-  600: "#C4D136",
-  700: "#56844e",
-  800: "#B8C633",
-  900: "#afc332",
+  100: "#F8B3B9",
+  200: "#F48A91",
+  300: "#F06169",
+  400: "#EC3841",
+  500: "#DE1E37", // Primary color
+  600: "#C81A31",
+  700: "#B2162B",
+  800: "#9C1225",
+  900: "#860E1F",
 };
 export const secondary = {
   100: "#3F3F3F",
@@ -65,17 +65,17 @@ export const success = {
   main: "rgb(51, 208, 103)",
 };
 export const blue = {
-  50: "#f3f5f9",
-  100: "#DBF0FE",
-  200: "#B8DEFE",
-  300: "#94C9FE",
-  400: "#7AB6FD",
-  500: "#4E97FD",
-  600: "#3975D9",
-  700: "#2756B6",
-  800: "#183C92",
-  900: "#0E2979",
-  main: "#67b346",
+  50: "#E3F2FD",
+  100: "#BBDEFB",
+  200: "#90CAF9",
+  300: "#64B5F6",
+  400: "#42A5F5",
+  500: "#2196F3",
+  600: "#1E88E5",
+  700: "#1976D2",
+  800: "#1565C0",
+  900: "#0D47A1",
+  main: "#1976D2",
   contrastText: "#FFFFFF",
 };
 export const marron = {
@@ -115,6 +115,7 @@ export const white = {
   main: "#fff",
 };
 export const themeColors = {
+  primary,
   dark,
   grey,
   paste,

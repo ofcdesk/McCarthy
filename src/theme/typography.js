@@ -1,16 +1,16 @@
 export const fontSize = 14;
 export const fontFamily = [
-  "Candara",
-  "Arial",
-  // "-apple-system",
-  // "BlinkMacSystemFont",
-  // "Segoe UI",
-  // "Oxygen",
+  "Open Sans",
+  "Roboto",
+  "-apple-system",
+  "BlinkMacSystemFont",
+  "Segoe UI",
+  "Oxygen",
   "Ubuntu",
-  // "Cantarell",
-  // "Fira Sans",
-  // "Droid Sans",
-  // "Helvetica Neue",
+  "Cantarell",
+  "Fira Sans",
+  "Droid Sans",
+  "Helvetica Neue",
   "sans-serif",
 ].join(",");
 export const typography = {
