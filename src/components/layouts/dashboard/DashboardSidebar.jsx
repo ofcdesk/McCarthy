@@ -148,6 +148,7 @@ const DashboardSidebar = (props) => {
             src="/assets/images/logo.png"
             style={{
               marginLeft: 8,
+              objectFit: "contain",
             }}
           />
         </Box>

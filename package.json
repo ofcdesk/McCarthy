@@ -1,5 +1,5 @@
 {
-  "name": "Besco-Dashboard",
+  "name": "McCarthy-Dashboard",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -9,7 +9,8 @@
     "start": "next start",
     "size": "node --max_old_space_size=4096",
     "fix:prettier": "prettier --write . '!.next' '!.node_modules'",
-    "lint": "next lint"
+    "lint": "next lint",
+    "ec2": "ssh -i mccarthy-backend.pem ec2-user@52.54.70.255"
   },
   "lint-staged": {
     "*.+(js|jsx)": [
@@ -31,17 +32,11 @@
     "basic-ftp": "^5.0.5",
     "clsx": "^1.2.1",
     "csv-parse": "^5.5.3",
-    "file-saver": "^2.0.5",
-    "heic2any": "^0.0.4",
     "iron-session": "^6.3.1",
-    "jimp": "^0.22.10",
-    "jszip": "^3.10.1",
-    "multiparty": "^4.2.3",
     "next": "^14.1.0",
     "node-persist": "^3.1.3",
     "notistack": "^2.0.8",
     "nprogress": "^0.2.0",
-    "qrcode": "^1.5.3",
     "react": "^18.2.0",
     "react-dom": "18.2.0",
     "simplebar-react": "^2.4.3"

@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: "Besco-Backend",
+      name: "McCarthy-Backend",
       script: "node_modules/next/dist/bin/next",
       args: "start",
       cwd: "./",
@@ -12,13 +12,13 @@ module.exports = {
   deploy: {
     production: {
       user: "nicolas",
-      host: ["raci-ssoma.besco.com.pe"],
-      key: "C:/Users/Nicolas/.ssh/id_rsa",
+      host: ["52.54.70.255"],
+      key: "./mccarthy-backend.pem",
       ref: "origin/main",
-      repo: "git@github.com:ofcdesk/besco-backend.git",
+      repo: "git@github.com:ofcdesk/McCarthy.git",
       path: "~/apps",
       "post-deploy":
-        "pm2 stop Besco-Backend; npm install; npm run build --max_old_space_size=2048 ; pm2 start Besco-Backend --time",
+        "pm2 stop McCarthy-Backend; yarn; yarn build --max_old_space_size=2048 ; pm2 start McCarthy-Backend --time",
     },
   },
 };

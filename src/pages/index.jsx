@@ -84,7 +84,7 @@ export default function ConfigurePage() {
   const [accProjects, setAccProjects] = useState([]);
   const [selectedAccProject, setSelectedAccProject] = useState(null);
   const [synchronizationStatus, setSynchronizationStatus] = useState(
-    "You need to select an ACC project and a FTP folder to start the synchronization and hit the CONFIRM SYNCHRONIZATION button"
+    "You need to select an ACC project and a FTP folder to start the synchronization and hit the CONFIRM SCHEDULE button"
   );
   const [scheduleInterval, setScheduleInterval] = useState("DAILY");
   const [intervalHour, setIntervalHour] = useState("12 AM");
@@ -504,7 +504,7 @@ export default function ConfigurePage() {
     try {
       await axios.post("/api/cancel-synchronization");
       setSynchronizationStatus(
-        "You need to select an ACC project and a FTP folder to start the synchronization and hit the CONFIRM SYNCHRONIZATION button"
+        "You need to select an ACC project and a FTP folder to start the synchronization and hit the CONFIRM SCHEDULE button"
       );
     } catch (err) {
       console.log("Error canceling synchronization");
@@ -559,6 +559,23 @@ export default function ConfigurePage() {
   const handleSyncNowPress = async () => {
     setSynchronizationInProgress(true);
     setCurrentSyncFile("Reading FTP Folder");
+
+    try {
+      await axios.post("/api/set-last-sync-time", {
+        lastTime: new Date().toLocaleString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
+      });
+    } catch (err) {}
+
+    try {
+      await axios.get("/api/refresh-sync-user-token");
+    } catch (err) {}
 
     try {
       await synchronizeItem(
@@ -809,6 +826,7 @@ export default function ConfigurePage() {
                       }}
                       value={ftpPassword}
                       disabled={ftpConnected}
+                      type={"password"}
                     />
                   </Grid>
                   <Grid
@@ -858,13 +876,13 @@ export default function ConfigurePage() {
               <CardHeader
                 title={"Configure Project Sync"}
                 subheader={"Configure synchronization between ACC and FTP"}
-                onClick={handleSyncNowPress}
                 action={
                   <Button
                     disabled={
                       selectedAccFolder === undefined ||
                       selectedFtpFolder === undefined
                     }
+                    onClick={handleSyncNowPress}
                   >
                     SYNC NOW
                   </Button>
@@ -986,7 +1004,7 @@ export default function ConfigurePage() {
                 sx={{ marginInline: 2, borderTop: 2, borderColor: "#CCC" }}
               />
               <CardHeader
-                title={"Sync Interval"}
+                title={"Schedule Interval"}
                 subheader={"Set up the interval for synchronization"}
               />
               <CardContent>
@@ -1105,7 +1123,7 @@ export default function ConfigurePage() {
                     <Alert
                       severity={
                         synchronizationStatus ===
-                        "You need to select an ACC project and a FTP folder to start the synchronization and hit the CONFIRM SYNCHRONIZATION button"
+                        "You need to select an ACC project and a FTP folder to start the synchronization and hit the CONFIRM SCHEDULE button"
                           ? "warning"
                           : "success"
                       }
@@ -1137,8 +1155,8 @@ export default function ConfigurePage() {
                   }
                 >
                   {synchronizationStatus === "Synchronization Confirmed"
-                    ? "CANCEL SYNCHRONIZATION"
-                    : "CONFIRM SYNCHRONIZATION"}
+                    ? "CANCEL SCHEDULE"
+                    : "CONFIRM SCHEDULE"}
                 </Button>
               </CardActions>
             </Card>
