@@ -43,6 +43,18 @@ const loginRoute = async (req, res) => {
     })
   ).data;
 
+  if (userProfile === null || userProfile === undefined) {
+    res.statusMessage = "Unauthorized";
+    res.status(401).send("Unauthorized");
+    return;
+  }
+  const emailCompany = userProfile.email.split("@")[1];
+  if (emailCompany !== "ofcdesk.com" && emailCompany !== "mccarthy.com") {
+    res.statusMessage = "Unauthorized";
+    res.status(401).send("Unauthorized");
+    return;
+  }
+
   req.session.user = {
     id: 1,
     admin: true,

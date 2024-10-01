@@ -14,6 +14,16 @@ const handler = async (req, res) => {
   }
 
   await store.removeItem("ftpConfig");
+  await store.removeItem("syncHubId");
+  await store.removeItem("syncProjectId");
+  await store.removeItem("syncProjectName");
+  await store.removeItem("syncAccFolderPath");
+  await store.removeItem("syncFTPFolderPath");
+  await store.removeItem("syncInterval");
+  await store.removeItem("syncWeekDay");
+  await store.removeItem("syncHour");
+  await store.removeItem("syncLastTime");
+
   res.send({ message: "FTP connection closed" });
 };
 

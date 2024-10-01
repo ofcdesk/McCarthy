@@ -61,7 +61,6 @@ export default function ConfigurePage() {
   const [userPicture, setUserPicture] = useState(null);
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
-  const [expanded, setExpanded] = useState(false);
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
   const [folderPickerTitle, setFolderPickerTitle] =
     useState("Select FTP Folder");
@@ -98,6 +97,23 @@ export default function ConfigurePage() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      if (synchronizationInProgress) {
+        const message =
+          "Synchronization is in progress. If you close the page, the synchronization will stop.";
+        event.preventDefault();
+        event.returnValue = message;
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [synchronizationInProgress]);
 
   const fetchData = async () => {
     setFetching(true);
@@ -324,6 +340,14 @@ export default function ConfigurePage() {
         password: ftpPassword,
       });
 
+      const response = (await axios.get("/api/user-projects?forceRefresh=true"))
+        .data;
+      setAccProjects(
+        response.map((project) => {
+          return { ...project, label: project.attributes.name };
+        })
+      );
+
       setFTPConnected(true);
     } catch (err) {
       console.log("Error connecting to FPT");
@@ -345,6 +369,17 @@ export default function ConfigurePage() {
     setFetchingText("Disconnecting FTP");
     try {
       await axios.get("/api/ftp-disconnect");
+
+      setFtpSelectedFolder(undefined);
+      setSelectedAccFolder(undefined);
+      setSearchProjectByText("");
+      setSelectedAccProject(null);
+      setSynchronizationStatus(
+        "You need to select an ACC project and a FTP folder to start the synchronization and hit the CONFIRM SCHEDULE button"
+      );
+      setLastSync(undefined);
+      setFtpFolders([]);
+      setAccFolders([]);
 
       setFTPConnected(false);
     } catch (err) {

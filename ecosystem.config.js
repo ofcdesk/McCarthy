@@ -11,7 +11,7 @@ module.exports = {
   // Deployment Configuration
   deploy: {
     production: {
-      user: "nicolas",
+      user: "ec2-user",
       host: ["52.54.70.255"],
       key: "./mccarthy-backend.pem",
       ref: "origin/main",
