@@ -561,42 +561,48 @@ export default function ConfigurePage() {
   };
 
   const synchronizeItem = async (ftpPath, accPath, accFolderId) => {
-    try {
-      const response = (
-        await axios.post("/api/ftp-folders", {
-          path: ftpPath,
-          foldersOnly: false,
-        })
-      ).data;
+    const stack = [{ ftpPath, accPath, accFolderId }];
 
-      for (const item of response) {
-        setCurrentSyncFile(`Syncing ${item.name} from FTP to ACC`);
+    while (stack.length > 0) {
+      const { ftpPath, accPath, accFolderId } = stack.pop();
 
-        const accResponse = (
-          await axios.post("/api/synchronize-item", {
-            hubId: selectedAccProject.relationships.hub.data.id,
-            projectId: selectedAccProject.id,
-            ftpPath: ftpPath,
-            accPath: accPath,
-            accFolderId: accFolderId,
-            fileName: item.name,
-            isFolder: item.isDirectory,
-            lastDate: item.rawModifiedAt,
+      try {
+        const response = (
+          await axios.post("/api/ftp-folders", {
+            path: ftpPath,
+            foldersOnly: false,
           })
         ).data;
 
-        if (item.isDirectory) {
-          // Recursively synchronize the directory
-          await synchronizeItem(
-            `${ftpPath}/${item.name}`,
-            `${accPath}/${item.name}`,
-            accResponse
-          );
+        for (const item of response) {
+          setCurrentSyncFile(`Syncing ${item.name} from FTP to ACC`);
+
+          const accResponse = (
+            await axios.post("/api/synchronize-item", {
+              hubId: selectedAccProject.relationships.hub.data.id,
+              projectId: selectedAccProject.id,
+              ftpPath: ftpPath,
+              accPath: accPath,
+              accFolderId: accFolderId,
+              fileName: item.name,
+              isFolder: item.isDirectory,
+              lastDate: item.rawModifiedAt,
+            })
+          ).data;
+
+          if (item.isDirectory) {
+            // Push the directory onto the stack for later processing
+            stack.push({
+              ftpPath: `${ftpPath}/${item.name}`,
+              accPath: `${accPath}/${item.name}`,
+              accFolderId: accResponse,
+            });
+          }
         }
+      } catch (err) {
+        console.log("Error during synchronization:", err);
+        return;
       }
-    } catch (err) {
-      console.log("Error during synchronization:", err);
-      return;
     }
   };
 
