@@ -579,16 +579,20 @@ export default function ConfigurePage() {
 
           try {
             const accResponse = (
-              await axios.post("/api/synchronize-item", {
-                hubId: selectedAccProject.relationships.hub.data.id,
-                projectId: selectedAccProject.id,
-                ftpPath: ftpPath,
-                accPath: accPath,
-                accFolderId: accFolderId,
-                fileName: item.name,
-                isFolder: item.isDirectory,
-                lastDate: item.rawModifiedAt,
-              })
+              await axios.post(
+                "/api/synchronize-item",
+                {
+                  hubId: selectedAccProject.relationships.hub.data.id,
+                  projectId: selectedAccProject.id,
+                  ftpPath: ftpPath,
+                  accPath: accPath,
+                  accFolderId: accFolderId,
+                  fileName: item.name,
+                  isFolder: item.isDirectory,
+                  lastDate: item.rawModifiedAt,
+                },
+                { timeout: 600000 }
+              )
             ).data;
 
             if (item.isDirectory) {
@@ -602,12 +606,10 @@ export default function ConfigurePage() {
           } catch (err) {
             console.log("Error on item: " + item.name);
             console.log(err);
-            return;
           }
         }
       } catch (err) {
         console.log("Error during synchronization:", err);
-        return;
       }
     }
   };
