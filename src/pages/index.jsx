@@ -158,6 +158,10 @@ export default function ConfigurePage() {
     }
 
     if (currentUserEmail !== "null") {
+      try {
+        await axios.get("/api/refresh-sync-user-token");
+      } catch (err) {}
+
       URL = "/api/user-projects?forceRefresh=true";
       response = (await axios.get(URL)).data;
       setAccProjects(
@@ -205,8 +209,8 @@ export default function ConfigurePage() {
     setFetching(true);
     const refreshedCredentials = (await axios.get("/api/refresh-token")).data;
     await axios.post(
-      "/api/set-sync-user?expires_in=" +
-        String(refreshedCredentials.expires_in) +
+      "/api/set-sync-user?expires_at=" +
+        String(refreshedCredentials.expires_at) +
         "&access_token=" +
         refreshedCredentials.access_token +
         "&refresh_token=" +
@@ -264,6 +268,9 @@ export default function ConfigurePage() {
     if (accFolders.length === 0) {
       setFetchingText("Loading ACC Folders");
       setFetching(true);
+      try {
+        await axios.get("/api/refresh-sync-user-token");
+      } catch (err) {}
       const response = (
         await axios.post("/api/acc-folders", {
           hubId: selectedAccProject.relationships.hub.data.id,
@@ -339,6 +346,10 @@ export default function ConfigurePage() {
         user: ftpUsername,
         password: ftpPassword,
       });
+
+      try {
+        await axios.get("/api/refresh-sync-user-token");
+      } catch (err) {}
 
       const response = (await axios.get("/api/user-projects?forceRefresh=true"))
         .data;
@@ -573,8 +584,6 @@ export default function ConfigurePage() {
             lastDate: item.rawModifiedAt,
           })
         ).data;
-
-        console.log(accResponse);
 
         if (item.isDirectory) {
           // Recursively synchronize the directory

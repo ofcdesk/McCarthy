@@ -27,7 +27,7 @@ const refreshTokenRoute = async (req, res) => {
     req.session.user = {
       ...req.session.user,
       access_token: newToken.data.access_token,
-      expires_in: Number(newToken.data.expires_in),
+      expires_at: Number(new Date().getTime() + 600 * 1000),
       refresh_token: newToken.data.refresh_token,
       logged_in: Date.now(),
     };
@@ -36,7 +36,7 @@ const refreshTokenRoute = async (req, res) => {
 
     res.send({
       access_token: newToken.data.access_token,
-      expires_in: Number(newToken.data.expires_in),
+      expires_at: Number(new Date().getTime() + 600 * 1000),
       refresh_token: newToken.data.refresh_token,
     });
   } catch (error) {

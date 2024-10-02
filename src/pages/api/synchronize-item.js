@@ -38,6 +38,43 @@ const uploadFileFromFTPToS3 = async (ftpConfig, ftpFilePath, s3SignedUrl) => {
   }
 };
 
+const refreshToken = async () => {
+  try {
+    console.log("refreshing token");
+    await store.init();
+    let accessToken = await store.get("access_token");
+    const refreshToken = await store.get("refresh_token");
+
+    const newToken = await axios.get(
+      process.env.NEXT_PUBLIC_API_URL_DOMAIN +
+        "/api/acc/auth/refresh-token?application_token=" +
+        process.env.APPLICATION_TOKEN +
+        "&access_token=" +
+        accessToken +
+        "&refresh_token=" +
+        refreshToken
+    );
+
+    if (newToken && newToken.data && newToken.data.access_token) {
+      await store.set("access_token", newToken.data.access_token);
+      await store.set("refresh_token", newToken.data.refresh_token);
+      await store.set("expires_at", new Date().getTime() + 600 * 1000);
+    }
+    console.log("token refreshed");
+  } catch (error) {
+    await store.removeItem("access_token");
+    await store.removeItem("refresh_token");
+    await store.removeItem("expires_at");
+    await store.removeItem("currentUserName");
+    await store.removeItem("currentUserEmail");
+    await store.removeItem("currentUserPicture");
+    console.log(error);
+
+    return "Unauthorized";
+  }
+  return "Success";
+};
+
 const handler = async (req, res) => {
   console.log(req.body);
   if (
@@ -68,6 +105,16 @@ const handler = async (req, res) => {
   await store.init();
   const ftpConfig = await store.getItem("ftpConfig");
   let accessToken = await store.get("access_token");
+  const expires_at = await store.getItem("expires_at");
+  if (expires_at < new Date().getTime()) {
+    const result = await refreshToken();
+    if (result === "Unauthorized") {
+      res.statusMessage = "Unauthorized";
+      res.status(401).send("Unauthorized");
+      return;
+    }
+    accessToken = await store.get("access_token");
+  }
 
   try {
     if (req.body.isFolder !== undefined && req.body.isFolder === true) {
@@ -285,12 +332,117 @@ const handler = async (req, res) => {
         return;
       } else {
         console.log("Item exists");
+
         const lastDate = await store.getItem(
           req.body.ftpPath + "/" + req.body.fileName
         );
 
         if (req.body.lastDate !== lastDate) {
           console.log("Updating file");
+
+          const storageLocation = (
+            await axios(
+              `https://developer.api.autodesk.com/data/v1/projects/${req.body.projectId}/storage`,
+              {
+                method: "POST",
+                headers: { Authorization: "Bearer " + accessToken },
+                data: {
+                  jsonapi: { version: "1.0" },
+                  data: {
+                    type: "objects",
+                    attributes: {
+                      name: req.body.fileName,
+                    },
+                    relationships: {
+                      target: {
+                        data: { type: "folders", id: req.body.accFolderId },
+                      },
+                    },
+                  },
+                },
+              }
+            )
+          ).data.data;
+
+          let storageObjectInfo = storageLocation.id;
+          storageObjectInfo = storageObjectInfo.replace(
+            "urn:adsk.objects:os.object:",
+            ""
+          );
+          storageObjectInfo = storageObjectInfo.split("/");
+
+          let signedS3Url = (
+            await axios(
+              "https://developer.api.autodesk.com/oss/v2/buckets/" +
+                storageObjectInfo[0] +
+                "/objects/" +
+                storageObjectInfo[1] +
+                "/signeds3upload",
+              {
+                method: "GET",
+                headers: { Authorization: "Bearer " + accessToken },
+              }
+            )
+          ).data;
+
+          await uploadFileFromFTPToS3(
+            ftpConfig,
+            req.body.ftpPath + "/" + req.body.fileName,
+            signedS3Url.urls[0]
+          );
+
+          await axios(
+            "https://developer.api.autodesk.com/oss/v2/buckets/" +
+              storageObjectInfo[0] +
+              "/objects/" +
+              storageObjectInfo[1] +
+              "/signeds3upload",
+            {
+              headers: { Authorization: "Bearer " + accessToken },
+              data: { uploadKey: signedS3Url.uploadKey },
+              method: "POST",
+            }
+          );
+
+          await axios(
+            `https://developer.api.autodesk.com/data/v1/projects/${req.body.projectId}/versions`,
+            {
+              headers: { Authorization: "Bearer " + accessToken },
+              data: {
+                jsonapi: { version: "1.0" },
+                data: {
+                  type: "versions",
+                  attributes: {
+                    name: req.body.fileName,
+                    extension: {
+                      type: "versions:autodesk.bim360:File",
+                      version: "1.0",
+                    },
+                  },
+                  relationships: {
+                    item: {
+                      data: {
+                        type: "items",
+                        id: itemExists.id,
+                      },
+                    },
+                    storage: {
+                      data: {
+                        type: "objects",
+                        id: storageLocation.id,
+                      },
+                    },
+                  },
+                },
+              },
+              method: "POST",
+            }
+          );
+
+          await store.setItem(
+            req.body.ftpPath + "/" + req.body.fileName,
+            req.body.lastDate
+          );
         }
 
         res.send("Success");

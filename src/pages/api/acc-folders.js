@@ -50,6 +50,7 @@ const refreshTokenRoute = async (req, res) => {
       )
     ).data;
     res.send(folderContents);
+    return;
   } catch (err) {
     console.log("error on getting folder contents");
     console.log(err);

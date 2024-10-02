@@ -10,7 +10,8 @@
     "size": "node --max_old_space_size=4096",
     "fix:prettier": "prettier --write . '!.next' '!.node_modules'",
     "lint": "next lint",
-    "ec2": "ssh -i mccarthy-backend.pem ec2-user@mccarthy.ofcdesk.com"
+    "ec2": "ssh -i mccarthy-backend.pem ec2-user@mccarthy.ofcdesk.com",
+    "logs": "pm2 deploy production exec \"pm2 logs McCarthy-Backend\""
   },
   "lint-staged": {
     "*.+(js|jsx)": [
@@ -39,6 +40,7 @@
     "nprogress": "^0.2.0",
     "react": "^18.2.0",
     "react-dom": "18.2.0",
+    "sharp": "^0.33.5",
     "simplebar-react": "^2.4.3"
   },
   "devDependencies": {

@@ -12,10 +12,7 @@ const handler = async (req, res) => {
 
   await store.set("access_token", req.query.access_token);
   await store.set("refresh_token", req.query.refresh_token);
-  await store.set(
-    "expires_in",
-    Date.now() + Number(req.query.expires_in) * 1000
-  );
+  await store.set("expires_at", req.query.expires_at);
   await store.set("currentUserName", req.query.userName);
   await store.set("currentUserEmail", req.query.userEmail);
   await store.set("currentUserPicture", req.query.userPicture);

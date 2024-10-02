@@ -59,7 +59,7 @@ const loginRoute = async (req, res) => {
     id: 1,
     admin: true,
     access_token: req.query.tk,
-    expires_in: Number(req.query.ex),
+    expires_at: Number(new Date().getTime() + 600 * 1000),
     refresh_token: req.query.rt,
     logged_in: Date.now(),
     origin: returnUrl,
