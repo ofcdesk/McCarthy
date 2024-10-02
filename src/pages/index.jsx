@@ -591,7 +591,7 @@ export default function ConfigurePage() {
                   isFolder: item.isDirectory,
                   lastDate: item.rawModifiedAt,
                 },
-                { timeout: 3600000 }
+                { timeout: 2700000 }
               )
             ).data;
 

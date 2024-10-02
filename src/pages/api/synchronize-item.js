@@ -28,7 +28,7 @@ const uploadFileFromFTPToS3 = async (ftpConfig, ftpFilePath, s3SignedUrl) => {
       },
       maxContentLength: Infinity,
       maxBodyLength: Infinity,
-      timeout: 3600000,
+      timeout: 2700000,
     });
 
     console.log("File uploaded successfully");
