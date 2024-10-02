@@ -28,14 +28,17 @@ const uploadFileFromFTPToS3 = async (ftpConfig, ftpFilePath, s3SignedUrl) => {
       },
       maxContentLength: Infinity,
       maxBodyLength: Infinity,
+      timeout: 600000,
     });
 
     console.log("File uploaded successfully");
+    client.close();
   } catch (error) {
     console.error("Error uploading file:", error);
-  } finally {
     client.close();
+    return "Error";
   }
+  return "Success";
 };
 
 const refreshToken = async () => {
@@ -248,11 +251,16 @@ const handler = async (req, res) => {
           )
         ).data;
 
-        await uploadFileFromFTPToS3(
+        const uploadResponse = await uploadFileFromFTPToS3(
           ftpConfig,
           req.body.ftpPath + "/" + req.body.fileName,
           signedS3Url.urls[0]
         );
+
+        if (uploadResponse === "Error") {
+          res.send("Error");
+          return;
+        }
 
         await axios(
           "https://developer.api.autodesk.com/oss/v2/buckets/" +
@@ -385,11 +393,16 @@ const handler = async (req, res) => {
             )
           ).data;
 
-          await uploadFileFromFTPToS3(
+          const uploadResponse = await uploadFileFromFTPToS3(
             ftpConfig,
             req.body.ftpPath + "/" + req.body.fileName,
             signedS3Url.urls[0]
           );
+
+          if (uploadResponse === "Error") {
+            res.send("Error");
+            return;
+          }
 
           await axios(
             "https://developer.api.autodesk.com/oss/v2/buckets/" +
