@@ -28,7 +28,7 @@ const uploadFileFromFTPToS3 = async (ftpConfig, ftpFilePath, s3SignedUrl) => {
       },
       maxContentLength: Infinity,
       maxBodyLength: Infinity,
-      timeout: 1800000,
+      timeout: 3600000,
     });
 
     console.log("File uploaded successfully");
@@ -243,7 +243,7 @@ const handler = async (req, res) => {
               storageObjectInfo[0] +
               "/objects/" +
               storageObjectInfo[1] +
-              "/signeds3upload?minutesExpiration=30",
+              "/signeds3upload?minutesExpiration=60",
             {
               method: "GET",
               headers: { Authorization: "Bearer " + accessToken },
@@ -385,7 +385,7 @@ const handler = async (req, res) => {
                 storageObjectInfo[0] +
                 "/objects/" +
                 storageObjectInfo[1] +
-                "/signeds3upload?minutesExpiration=30",
+                "/signeds3upload?minutesExpiration=60",
               {
                 method: "GET",
                 headers: { Authorization: "Bearer " + accessToken },
