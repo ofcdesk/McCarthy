@@ -577,26 +577,32 @@ export default function ConfigurePage() {
         for (const item of response) {
           setCurrentSyncFile(`Syncing ${item.name} from FTP to ACC`);
 
-          const accResponse = (
-            await axios.post("/api/synchronize-item", {
-              hubId: selectedAccProject.relationships.hub.data.id,
-              projectId: selectedAccProject.id,
-              ftpPath: ftpPath,
-              accPath: accPath,
-              accFolderId: accFolderId,
-              fileName: item.name,
-              isFolder: item.isDirectory,
-              lastDate: item.rawModifiedAt,
-            })
-          ).data;
+          try {
+            const accResponse = (
+              await axios.post("/api/synchronize-item", {
+                hubId: selectedAccProject.relationships.hub.data.id,
+                projectId: selectedAccProject.id,
+                ftpPath: ftpPath,
+                accPath: accPath,
+                accFolderId: accFolderId,
+                fileName: item.name,
+                isFolder: item.isDirectory,
+                lastDate: item.rawModifiedAt,
+              })
+            ).data;
 
-          if (item.isDirectory) {
-            // Push the directory onto the stack for later processing
-            stack.push({
-              ftpPath: `${ftpPath}/${item.name}`,
-              accPath: `${accPath}/${item.name}`,
-              accFolderId: accResponse,
-            });
+            if (item.isDirectory) {
+              // Push the directory onto the stack for later processing
+              stack.push({
+                ftpPath: `${ftpPath}/${item.name}`,
+                accPath: `${accPath}/${item.name}`,
+                accFolderId: accResponse,
+              });
+            }
+          } catch (err) {
+            console.log("Error on item: " + item.name);
+            console.log(err);
+            return;
           }
         }
       } catch (err) {
