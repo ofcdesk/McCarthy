@@ -243,7 +243,7 @@ const handler = async (req, res) => {
               storageObjectInfo[0] +
               "/objects/" +
               storageObjectInfo[1] +
-              "/signeds3upload",
+              "/signeds3upload?minutesExpiration=20",
             {
               method: "GET",
               headers: { Authorization: "Bearer " + accessToken },
@@ -385,7 +385,7 @@ const handler = async (req, res) => {
                 storageObjectInfo[0] +
                 "/objects/" +
                 storageObjectInfo[1] +
-                "/signeds3upload",
+                "/signeds3upload?minutesExpiration=20",
               {
                 method: "GET",
                 headers: { Authorization: "Bearer " + accessToken },
