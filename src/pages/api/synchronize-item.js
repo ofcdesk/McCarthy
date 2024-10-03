@@ -13,6 +13,12 @@ const uploadFileFromFTPToDataManagement = async (
   let accessToken = await getAccessToken();
 
   let storageLocation;
+  await store.setItem("currentSyncFile", {
+    file: ftpFilePath,
+    status: "Creating storage location",
+    error: false,
+    uploadCompleted: false,
+  });
   try {
     storageLocation = (
       await axios(
@@ -38,6 +44,12 @@ const uploadFileFromFTPToDataManagement = async (
       )
     ).data.data;
   } catch (error) {
+    await store.setItem("currentSyncFile", {
+      file: ftpFilePath,
+      status: "Error creating storage location",
+      error: true,
+      uploadCompleted: false,
+    });
     console.log("Error creating storage location");
     console.log(error);
     return null;
@@ -54,6 +66,57 @@ const uploadFileFromFTPToDataManagement = async (
 
   accessToken = await getAccessToken();
 
+  await store.setItem("currentSyncFile", {
+    file: ftpFilePath,
+    status: "Getting signed S3 URL",
+    error: false,
+    uploadCompleted: false,
+  });
+
+  /**const ChunkSize = 5 << 20;
+    const MaxBatches = 25;
+    const totalParts = Math.ceil(data.byteLength / ChunkSize);
+    let partsUploaded = 0;
+    let uploadUrls = [];
+    let uploadKey;
+    while (partsUploaded < totalParts) {
+      const chunk = data.slice(
+        partsUploaded * ChunkSize,
+        Math.min((partsUploaded + 1) * ChunkSize, data.byteLength)
+      );
+      while (true) {
+        console.debug("Uploading part", partsUploaded + 1);
+        if (uploadUrls.length === 0) {
+          // Automatically retries 429 and 500-599 responses
+          signedS3Url = await this._getUploadUrls(
+            bucketKey,
+            objectKey,
+            Math.min(totalParts - partsUploaded, MaxBatches),
+            partsUploaded + 1,
+            uploadKey,
+            options?.minutesExpiration
+          );
+          uploadUrls = uploadParams.urls.slice();
+          uploadKey = uploadParams.uploadKey;
+        }
+        const url = uploadUrls.shift();
+        try {
+          await this.axios.put(url, chunk);
+          break;
+        } catch (err) {
+          const status = err.response?.status;
+          if (status === 403) {
+            console.debug("Got 403, refreshing upload URLs");
+            uploadUrls = []; // Couldn't this cause an infinite loop? (i.e., could the server keep responding with 403 indefinitely?)
+          } else {
+            throw err;
+          }
+        }
+      }
+      console.debug("Part successfully uploaded", partsUploaded + 1);
+      partsUploaded++;
+    }*/
+
   try {
     signedS3Url = (
       await axios(
@@ -69,6 +132,12 @@ const uploadFileFromFTPToDataManagement = async (
       )
     ).data;
   } catch (error) {
+    await store.setItem("currentSyncFile", {
+      file: ftpFilePath,
+      status: "Error getting signed S3 URL",
+      error: true,
+      uploadCompleted: false,
+    });
     console.log("Error getting signed S3 URL");
     console.log(error);
     return null;
@@ -92,6 +161,12 @@ const uploadFileFromFTPToDataManagement = async (
     await client.downloadTo(writableStream, ftpFilePath);
 
     console.log("Uploading file to S3...");
+    await store.setItem("currentSyncFile", {
+      file: ftpFilePath,
+      status: "Uploading file to S3",
+      error: false,
+      uploadCompleted: false,
+    });
     await axios.put(signedS3Url.urls[0], fileBuffer, {
       headers: {
         "Content-Type": "application/octet-stream",
@@ -104,6 +179,12 @@ const uploadFileFromFTPToDataManagement = async (
     console.log("File uploaded successfully");
     client.close();
   } catch (error) {
+    await store.setItem("currentSyncFile", {
+      file: ftpFilePath,
+      status: "Error uploading file to S3",
+      error: true,
+      uploadCompleted: false,
+    });
     console.error("Error uploading file:", error);
     client.close();
     return null;
@@ -111,6 +192,12 @@ const uploadFileFromFTPToDataManagement = async (
 
   accessToken = await getAccessToken();
 
+  await store.setItem("currentSyncFile", {
+    file: ftpFilePath,
+    status: "Finalizing upload",
+    error: false,
+    uploadCompleted: false,
+  });
   try {
     await axios(
       "https://developer.api.autodesk.com/oss/v2/buckets/" +
@@ -125,6 +212,12 @@ const uploadFileFromFTPToDataManagement = async (
       }
     );
   } catch (error) {
+    await store.setItem("currentSyncFile", {
+      file: ftpFilePath,
+      status: "Error finalizing upload",
+      error: true,
+      uploadCompleted: false,
+    });
     console.log("Error finalizing upload");
     console.log(error);
     return null;
@@ -170,7 +263,13 @@ const refreshToken = async () => {
   return "Success";
 };
 
-const getFolderContents = async (hubId, projectId, path, filterType) => {
+const getFolderContents = async (
+  hubId,
+  projectId,
+  path,
+  fileName,
+  filterType
+) => {
   const accessToken = await getAccessToken();
   try {
     return (
@@ -194,7 +293,15 @@ const getFolderContents = async (hubId, projectId, path, filterType) => {
       )
     ).data;
   } catch (error) {
+    console.log("Error getting folder contents");
     console.log(error);
+    await store.setItem("currentSyncFile", {
+      file: path + "/" + fileName,
+      status: "Error getting folder contents",
+      error: true,
+      uploadCompleted: false,
+    });
+    return null;
   }
 };
 
@@ -241,18 +348,24 @@ const handler = async (req, res) => {
   }
 
   await store.init();
-
-  //await store.setItem("currentSyncFile", req.body.ftpPath + "/" + req.body.fileName);
-
-  //res.send("Success");
+  await store.setItem("synchronizationStatus", {
+    status: true,
+    lastDate: new Date().getTime(),
+  });
 
   if (req.body.isFolder !== undefined && req.body.isFolder === true) {
     const folderContents = await getFolderContents(
       req.body.hubId,
       req.body.projectId,
       req.body.accPath,
+      req.body.fileName,
       ["folders"]
     );
+
+    if (folderContents === null) {
+      res.send("Error");
+      return;
+    }
 
     const folderExists = folderContents.find(
       (item) => item.attributes.name === req.body.fileName
@@ -301,12 +414,24 @@ const handler = async (req, res) => {
       return;
     }
   } else {
+    await store.setItem("currentSyncFile", {
+      file: req.body.ftpPath + "/" + req.body.fileName,
+      status: "Starting sync",
+      error: false,
+      uploadCompleted: false,
+    });
+    res.send("Success");
     const folderContents = await getFolderContents(
       req.body.hubId,
       req.body.projectId,
       req.body.accPath,
+      req.body.fileName,
       ["items"]
     );
+
+    if (folderContents === null) {
+      return;
+    }
 
     const itemExists = folderContents.find(
       (item) =>
@@ -381,9 +506,14 @@ const handler = async (req, res) => {
           }
         );
       } catch (error) {
+        await store.setItem("currentSyncFile", {
+          file: req.body.ftpPath + "/" + req.body.fileName,
+          status: "Error creating item on Data Management",
+          error: true,
+          uploadCompleted: false,
+        });
         console.log("Error creating item on Data Management");
         console.log(error);
-        res.send("Error");
         return;
       }
 
@@ -391,9 +521,6 @@ const handler = async (req, res) => {
         req.body.ftpPath + "/" + req.body.fileName,
         req.body.lastDate
       );
-
-      res.send("Success");
-      return;
     } else {
       console.log("Item exists");
 
@@ -453,17 +580,26 @@ const handler = async (req, res) => {
             req.body.lastDate
           );
         } catch (error) {
+          await store.setItem("currentSyncFile", {
+            file: req.body.ftpPath + "/" + req.body.fileName,
+            status: "Error updating item on Data Managemen",
+            error: true,
+            uploadCompleted: false,
+          });
           console.log("Error updating item on Data Management");
           console.log(error);
-          res.send("Error");
           return;
         }
       }
-
-      res.send("Success");
-      return;
     }
   }
+
+  await store.setItem("currentSyncFile", {
+    file: req.body.ftpPath + "/" + req.body.fileName,
+    status: "Sync completed",
+    error: false,
+    uploadCompleted: true,
+  });
 };
 
 export default withSessionRoute(handler);

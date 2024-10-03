@@ -83,7 +83,8 @@ export default function ConfigurePage() {
   const [accProjects, setAccProjects] = useState([]);
   const [selectedAccProject, setSelectedAccProject] = useState(null);
   const [synchronizationStatus, setSynchronizationStatus] = useState(
-    "You need to select an ACC project and a FTP folder to start the synchronization and hit the CONFIRM SCHEDULE button"
+    //"You need to select an ACC project and a FTP folder to schedule the synchronization interval and hit the CONFIRM SCHEDULE button"
+    "Schedule unavailable"
   );
   const [scheduleInterval, setScheduleInterval] = useState("DAILY");
   const [intervalHour, setIntervalHour] = useState("12 AM");
@@ -91,6 +92,10 @@ export default function ConfigurePage() {
   const [lastSync, setLastSync] = useState(undefined);
   const [synchronizationInProgress, setSynchronizationInProgress] =
     useState(false);
+  const [
+    otherInstanceSynchronizationInProgress,
+    setOtherInstanceSynchronizationInProgress,
+  ] = useState(false);
   const [currentSyncFile, setCurrentSyncFile] = useState("Loading File...");
   const [displaySyncErrorFeedback, setDisplaySyncErrorFeedback] = useState("");
 
@@ -114,6 +119,29 @@ export default function ConfigurePage() {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [synchronizationInProgress]);
+
+  useEffect(() => {
+    const timerId = setInterval(() => {
+      axios.get("/api/synchronization-in-progress-status").then((response) => {
+        if (response !== undefined && response.data.status === true) {
+          const currentTime = new Date().getTime();
+          const differenceInMinutes =
+            (currentTime - response.data.lastDate) / (1000 * 60);
+          if (differenceInMinutes < 60) {
+            //The user could have closed the page and the synchronization would be stuck
+            setOtherInstanceSynchronizationInProgress(true);
+          } else {
+            setOtherInstanceSynchronizationInProgress(false);
+          }
+        } else {
+          setOtherInstanceSynchronizationInProgress(false);
+        }
+      });
+    }, 3000);
+    return () => {
+      clearInterval(timerId);
+    };
+  }, []);
 
   const fetchData = async () => {
     setFetching(true);
@@ -159,16 +187,16 @@ export default function ConfigurePage() {
 
     if (currentUserEmail !== "null") {
       try {
-        await axios.get("/api/refresh-sync-user-token");
-      } catch (err) {}
-
-      URL = "/api/user-projects?forceRefresh=true";
-      response = (await axios.get(URL)).data;
-      setAccProjects(
-        response.map((project) => {
-          return { ...project, label: project.attributes.name };
-        })
-      );
+        URL = "/api/user-projects?forceRefresh=true";
+        response = (await axios.get(URL)).data;
+        setAccProjects(
+          response.map((project) => {
+            return { ...project, label: project.attributes.name };
+          })
+        );
+      } catch (err) {
+        console.log("Error getting user projects");
+      }
 
       URL = "/api/synchronization-config";
       response = (await axios.get(URL)).data;
@@ -231,7 +259,7 @@ export default function ConfigurePage() {
   };
 
   const handleFTPFolderClick = async () => {
-    if (!ftpConnected) {
+    if (!ftpConnected || otherInstanceSynchronizationInProgress === true) {
       return;
     }
     if (ftpFolders.length === 0) {
@@ -348,16 +376,17 @@ export default function ConfigurePage() {
       });
 
       try {
-        await axios.get("/api/refresh-sync-user-token");
-      } catch (err) {}
-
-      const response = (await axios.get("/api/user-projects?forceRefresh=true"))
-        .data;
-      setAccProjects(
-        response.map((project) => {
-          return { ...project, label: project.attributes.name };
-        })
-      );
+        const response = (
+          await axios.get("/api/user-projects?forceRefresh=true")
+        ).data;
+        setAccProjects(
+          response.map((project) => {
+            return { ...project, label: project.attributes.name };
+          })
+        );
+      } catch (err) {
+        console.log("Error getting user projects");
+      }
 
       setFTPConnected(true);
     } catch (err) {
@@ -386,7 +415,7 @@ export default function ConfigurePage() {
       setSearchProjectByText("");
       setSelectedAccProject(null);
       setSynchronizationStatus(
-        "You need to select an ACC project and a FTP folder to start the synchronization and hit the CONFIRM SCHEDULE button"
+        "You need to select an ACC project and a FTP folder to schedule the synchronization interval and hit the CONFIRM SCHEDULE button"
       );
       setLastSync(undefined);
       setFtpFolders([]);
@@ -550,7 +579,7 @@ export default function ConfigurePage() {
     try {
       await axios.post("/api/cancel-synchronization");
       setSynchronizationStatus(
-        "You need to select an ACC project and a FTP folder to start the synchronization and hit the CONFIRM SCHEDULE button"
+        "You need to select an ACC project and a FTP folder to schedule the synchronization interval and hit the CONFIRM SCHEDULE button"
       );
     } catch (err) {
       console.log("Error canceling synchronization");
@@ -579,29 +608,50 @@ export default function ConfigurePage() {
 
           try {
             const accResponse = (
-              await axios.post(
-                "/api/synchronize-item",
-                {
-                  hubId: selectedAccProject.relationships.hub.data.id,
-                  projectId: selectedAccProject.id,
-                  ftpPath: ftpPath,
-                  accPath: accPath,
-                  accFolderId: accFolderId,
-                  fileName: item.name,
-                  isFolder: item.isDirectory,
-                  lastDate: item.rawModifiedAt,
-                },
-                { timeout: 2700000 }
-              )
+              await axios.post("/api/synchronize-item", {
+                hubId: selectedAccProject.relationships.hub.data.id,
+                projectId: selectedAccProject.id,
+                ftpPath: ftpPath,
+                accPath: accPath,
+                accFolderId: accFolderId,
+                fileName: item.name,
+                isFolder: item.isDirectory,
+                lastDate: item.rawModifiedAt,
+              })
             ).data;
 
-            if (item.isDirectory) {
+            if (item.isDirectory && accResponse !== "Error") {
               // Push the directory onto the stack for later processing
               stack.push({
                 ftpPath: `${ftpPath}/${item.name}`,
                 accPath: `${accPath}/${item.name}`,
                 accFolderId: accResponse,
               });
+            }
+
+            if (accResponse === "Error") {
+              continue;
+            }
+
+            let actualStatus = (await axios.get("/api/synchronization-status"))
+              .data;
+            if (
+              actualStatus.status !== undefined &&
+              actualStatus.file !== undefined &&
+              actualStatus.error !== undefined &&
+              actualStatus.uploadCompleted !== undefined
+            ) {
+              while (
+                actualStatus.uploadCompleted === false &&
+                actualStatus.error === false
+              ) {
+                setCurrentSyncFile(
+                  actualStatus.file + "\n" + actualStatus.status
+                );
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+                actualStatus = (await axios.get("/api/synchronization-status"))
+                  .data;
+              }
             }
           } catch (err) {
             console.log("Error on item: " + item.name);
@@ -646,11 +696,36 @@ export default function ConfigurePage() {
       console.log(err);
     }
 
+    try {
+      await axios.post("/api/finish-synchronization");
+    } catch (err) {
+      console.log("Error finishing synchronization");
+      console.log(err);
+    }
+
     setCurrentSyncFile("Synchronization Finished");
   };
 
   const handleCloseInProgressSynchronization = () => {
     setSynchronizationInProgress(false);
+  };
+
+  const handleProjectSelectorClick = async () => {
+    if (accProjects.length === 0) {
+      setFetchingText("Loading ACC Projects");
+      setFetching(true);
+      try {
+        await axios.get("/api/refresh-sync-user-token");
+      } catch (err) {}
+      const response = (await axios.get("/api/user-projects?forceRefresh=true"))
+        .data;
+      setAccProjects(
+        response.map((project) => {
+          return { ...project, label: project.attributes.name };
+        })
+      );
+      setFetching(false);
+    }
   };
 
   if (isFetching) {
@@ -895,6 +970,7 @@ export default function ConfigurePage() {
                   >
                     <Button
                       fullWidth
+                      disabled={otherInstanceSynchronizationInProgress === true}
                       onClick={
                         ftpConnected ? handleFTPDisconnect : handleFTPConnect
                       }
@@ -931,6 +1007,15 @@ export default function ConfigurePage() {
         {currentUserName !== undefined && ftpConnected && (
           <Grid item xs={12}>
             <Card>
+              {otherInstanceSynchronizationInProgress === true && (
+                <Grid item xs={12}>
+                  <Alert severity={"info"}>
+                    <AlertTitle>Synchronization In Progress</AlertTitle>
+                    There is a synchronization in progress in another instance,
+                    wait for it to finish to start a new one
+                  </Alert>
+                </Grid>
+              )}
               <CardHeader
                 title={"Configure Project Sync"}
                 subheader={"Configure synchronization between ACC and FTP"}
@@ -938,7 +1023,8 @@ export default function ConfigurePage() {
                   <Button
                     disabled={
                       selectedAccFolder === undefined ||
-                      selectedFtpFolder === undefined
+                      selectedFtpFolder === undefined ||
+                      otherInstanceSynchronizationInProgress === true
                     }
                     onClick={handleSyncNowPress}
                   >
@@ -966,7 +1052,8 @@ export default function ConfigurePage() {
                       variant="outlined"
                       disablePortal
                       disabled={
-                        synchronizationStatus === "Synchronization Confirmed"
+                        synchronizationStatus === "Synchronization Confirmed" ||
+                        otherInstanceSynchronizationInProgress === true
                       }
                       value={
                         selectedAccProject !== null
@@ -987,6 +1074,7 @@ export default function ConfigurePage() {
                       onInputChange={(event, newInputValue) => {
                         setSearchProjectByText(newInputValue);
                       }}
+                      onOpen={handleProjectSelectorClick}
                       renderInput={(params) => (
                         <TextField
                           {...params}
@@ -1016,7 +1104,9 @@ export default function ConfigurePage() {
                         open={false}
                         disabled={
                           selectedAccProject === null ||
-                          synchronizationStatus === "Synchronization Confirmed"
+                          synchronizationStatus ===
+                            "Synchronization Confirmed" ||
+                          otherInstanceSynchronizationInProgress === true
                         }
                         value={
                           selectedAccFolder !== undefined
@@ -1044,7 +1134,9 @@ export default function ConfigurePage() {
                         open={false}
                         disabled={
                           !ftpConnected ||
-                          synchronizationStatus === "Synchronization Confirmed"
+                          synchronizationStatus ===
+                            "Synchronization Confirmed" ||
+                          otherInstanceSynchronizationInProgress === true
                         }
                         value={
                           selectedFtpFolder !== undefined
@@ -1086,7 +1178,9 @@ export default function ConfigurePage() {
                         value={scheduleInterval}
                         onChange={handleScheduleIntervalChange}
                         disabled={
-                          synchronizationStatus === "Synchronization Confirmed"
+                          synchronizationStatus ===
+                            "Synchronization Confirmed" ||
+                          otherInstanceSynchronizationInProgress === true
                         }
                       >
                         <MenuItem value={"DAILY"} key={0}>
@@ -1115,7 +1209,8 @@ export default function ConfigurePage() {
                           onChange={handleIntervalWeekdayChange}
                           disabled={
                             synchronizationStatus ===
-                            "Synchronization Confirmed"
+                              "Synchronization Confirmed" ||
+                            otherInstanceSynchronizationInProgress === true
                           }
                         >
                           <MenuItem value={"Sunday"} key={0}>
@@ -1158,7 +1253,9 @@ export default function ConfigurePage() {
                         value={intervalHour}
                         onChange={handleIntervalHourChange}
                         disabled={
-                          synchronizationStatus === "Synchronization Confirmed"
+                          synchronizationStatus ===
+                            "Synchronization Confirmed" ||
+                          otherInstanceSynchronizationInProgress === true
                         }
                       >
                         {hours.map((hour, index) => (
@@ -1181,12 +1278,13 @@ export default function ConfigurePage() {
                     <Alert
                       severity={
                         synchronizationStatus ===
-                        "You need to select an ACC project and a FTP folder to start the synchronization and hit the CONFIRM SCHEDULE button"
+                          "You need to select an ACC project and a FTP folder to schedule the synchronization interval and hit the CONFIRM SCHEDULE button" ||
+                        synchronizationStatus === "Schedule unavailable"
                           ? "warning"
                           : "success"
                       }
                     >
-                      <AlertTitle>Synchronization Status</AlertTitle>
+                      <AlertTitle>Schedule Status</AlertTitle>
                       {synchronizationStatus}
                     </Alert>
                   </Grid>
@@ -1203,8 +1301,10 @@ export default function ConfigurePage() {
               <CardActions sx={{ display: "flex", justifyContent: "flex-end" }}>
                 <Button
                   disabled={
-                    selectedAccFolder === undefined ||
-                    selectedFtpFolder === undefined
+                    true
+                    //selectedAccFolder === undefined ||
+                    //selectedFtpFolder === undefined ||
+                    //otherInstanceSynchronizationInProgress === true
                   }
                   onClick={
                     synchronizationStatus === "Synchronization Confirmed"
