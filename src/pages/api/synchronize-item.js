@@ -8,9 +8,10 @@ const uploadFileFromFTPToDataManagement = async (
   projectId,
   fileName,
   folderId,
-  ftpFilePath,
-  accessToken
+  ftpFilePath
 ) => {
+  let accessToken = await getAccessToken();
+
   let storageLocation;
   try {
     storageLocation = (
@@ -37,6 +38,7 @@ const uploadFileFromFTPToDataManagement = async (
       )
     ).data.data;
   } catch (error) {
+    console.log("Error creating storage location");
     console.log(error);
     return null;
   }
@@ -49,6 +51,8 @@ const uploadFileFromFTPToDataManagement = async (
   storageObjectInfo = storageObjectInfo.split("/");
 
   let signedS3Url = null;
+
+  accessToken = await getAccessToken();
 
   try {
     signedS3Url = (
@@ -65,10 +69,12 @@ const uploadFileFromFTPToDataManagement = async (
       )
     ).data;
   } catch (error) {
+    console.log("Error getting signed S3 URL");
     console.log(error);
     return null;
   }
 
+  const ftpConfig = await store.getItem("ftpConfig");
   const client = new Client(0);
 
   try {
@@ -103,6 +109,8 @@ const uploadFileFromFTPToDataManagement = async (
     return null;
   }
 
+  accessToken = await getAccessToken();
+
   try {
     await axios(
       "https://developer.api.autodesk.com/oss/v2/buckets/" +
@@ -117,6 +125,7 @@ const uploadFileFromFTPToDataManagement = async (
       }
     );
   } catch (error) {
+    console.log("Error finalizing upload");
     console.log(error);
     return null;
   }
@@ -161,13 +170,8 @@ const refreshToken = async () => {
   return "Success";
 };
 
-const getFolderContents = async (
-  hubId,
-  projectId,
-  path,
-  accessToken,
-  filterType
-) => {
+const getFolderContents = async (hubId, projectId, path, filterType) => {
+  const accessToken = await getAccessToken();
   try {
     return (
       await axios(
@@ -192,6 +196,21 @@ const getFolderContents = async (
   } catch (error) {
     console.log(error);
   }
+};
+
+const getAccessToken = async () => {
+  let accessToken = await store.get("access_token");
+  const expires_at = await store.getItem("expires_at");
+  if (expires_at < new Date().getTime()) {
+    const result = await refreshToken();
+    if (result === "Unauthorized") {
+      res.statusMessage = "Unauthorized";
+      res.status(401).send("Unauthorized");
+      return;
+    }
+    accessToken = await store.get("access_token");
+  }
+  return accessToken;
 };
 
 const handler = async (req, res) => {
@@ -222,33 +241,26 @@ const handler = async (req, res) => {
   }
 
   await store.init();
-  const ftpConfig = await store.getItem("ftpConfig");
-  let accessToken = await store.get("access_token");
-  const expires_at = await store.getItem("expires_at");
-  if (expires_at < new Date().getTime()) {
-    const result = await refreshToken();
-    if (result === "Unauthorized") {
-      res.statusMessage = "Unauthorized";
-      res.status(401).send("Unauthorized");
-      return;
-    }
-    accessToken = await store.get("access_token");
-  }
 
-  try {
-    if (req.body.isFolder !== undefined && req.body.isFolder === true) {
-      const folderContents = await getFolderContents(
-        req.body.hubId,
-        req.body.projectId,
-        req.body.accPath,
-        accessToken,
-        ["folders"]
-      );
+  //await store.setItem("currentSyncFile", req.body.ftpPath + "/" + req.body.fileName);
 
-      const folderExists = folderContents.find(
-        (item) => item.attributes.name === req.body.fileName
-      );
-      if (folderExists === undefined) {
+  //res.send("Success");
+
+  if (req.body.isFolder !== undefined && req.body.isFolder === true) {
+    const folderContents = await getFolderContents(
+      req.body.hubId,
+      req.body.projectId,
+      req.body.accPath,
+      ["folders"]
+    );
+
+    const folderExists = folderContents.find(
+      (item) => item.attributes.name === req.body.fileName
+    );
+    if (folderExists === undefined) {
+      const accessToken = await getAccessToken();
+
+      try {
         const createdFolder = (
           await axios(
             `https://developer.api.autodesk.com/data/v1/projects/${req.body.projectId}/folders`,
@@ -278,34 +290,41 @@ const handler = async (req, res) => {
         ).data;
         res.send(createdFolder.data.id);
         return;
-      } else {
-        res.send(folderExists.id);
+      } catch (error) {
+        console.log("Error creating folder on Data Management");
+        console.log(error);
+        res.send("Error");
         return;
       }
     } else {
-      const folderContents = await getFolderContents(
-        req.body.hubId,
+      res.send(folderExists.id);
+      return;
+    }
+  } else {
+    const folderContents = await getFolderContents(
+      req.body.hubId,
+      req.body.projectId,
+      req.body.accPath,
+      ["items"]
+    );
+
+    const itemExists = folderContents.find(
+      (item) =>
+        item.attributes.extension.data.sourceFileName === req.body.fileName
+    );
+    if (itemExists === undefined) {
+      console.log("Item does not exist");
+
+      const storageLocationId = await uploadFileFromFTPToDataManagement(
         req.body.projectId,
-        req.body.accPath,
-        accessToken,
-        ["items"]
+        req.body.fileName,
+        req.body.accFolderId,
+        req.body.ftpPath + "/" + req.body.fileName
       );
 
-      const itemExists = folderContents.find(
-        (item) =>
-          item.attributes.extension.data.sourceFileName === req.body.fileName
-      );
-      if (itemExists === undefined) {
-        console.log("Item does not exist");
+      const accessToken = await getAccessToken();
 
-        const storageLocationId = await uploadFileFromFTPToDataManagement(
-          req.body.projectId,
-          req.body.fileName,
-          req.body.accFolderId,
-          req.body.ftpPath + "/" + req.body.fileName,
-          accessToken
-        );
-
+      try {
         await axios(
           `https://developer.api.autodesk.com/data/v1/projects/${req.body.projectId}/items`,
           {
@@ -361,32 +380,39 @@ const handler = async (req, res) => {
             method: "POST",
           }
         );
-
-        await store.setItem(
-          req.body.ftpPath + "/" + req.body.fileName,
-          req.body.lastDate
-        );
-
-        res.send("Success");
+      } catch (error) {
+        console.log("Error creating item on Data Management");
+        console.log(error);
+        res.send("Error");
         return;
-      } else {
-        console.log("Item exists");
+      }
 
-        const lastDate = await store.getItem(
+      await store.setItem(
+        req.body.ftpPath + "/" + req.body.fileName,
+        req.body.lastDate
+      );
+
+      res.send("Success");
+      return;
+    } else {
+      console.log("Item exists");
+
+      const lastDate = await store.getItem(
+        req.body.ftpPath + "/" + req.body.fileName
+      );
+
+      if (req.body.lastDate !== lastDate) {
+        console.log("Updating file");
+
+        const storageLocationId = await uploadFileFromFTPToDataManagement(
+          req.body.projectId,
+          req.body.fileName,
+          req.body.accFolderId,
           req.body.ftpPath + "/" + req.body.fileName
         );
 
-        if (req.body.lastDate !== lastDate) {
-          console.log("Updating file");
-
-          const storageLocationId = await uploadFileFromFTPToDataManagement(
-            req.body.projectId,
-            req.body.fileName,
-            req.body.accFolderId,
-            req.body.ftpPath + "/" + req.body.fileName,
-            accessToken
-          );
-
+        const accessToken = await getAccessToken();
+        try {
           await axios(
             `https://developer.api.autodesk.com/data/v1/projects/${req.body.projectId}/versions`,
             {
@@ -426,20 +452,18 @@ const handler = async (req, res) => {
             req.body.ftpPath + "/" + req.body.fileName,
             req.body.lastDate
           );
+        } catch (error) {
+          console.log("Error updating item on Data Management");
+          console.log(error);
+          res.send("Error");
+          return;
         }
-
-        res.send("Success");
-        return;
       }
-    }
-  } catch (error) {
-    if (error.response) {
-      console.log(JSON.stringify(error.response.data));
-    } else {
-      console.log(error);
+
+      res.send("Success");
+      return;
     }
   }
-  res.send("Success");
 };
 
 export default withSessionRoute(handler);
