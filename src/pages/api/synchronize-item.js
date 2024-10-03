@@ -64,8 +64,6 @@ const uploadFileFromFTPToDataManagement = async (
 
   let signedS3Url = null;
 
-  accessToken = await getAccessToken();
-
   await store.setItem("currentSyncFile", {
     file: ftpFilePath,
     status: "Getting signed S3 URL",
@@ -128,6 +126,8 @@ const uploadFileFromFTPToDataManagement = async (
           if (uploadKey) {
             endpoint += `&uploadKey=${uploadKey}`;
           }
+
+          accessToken = await getAccessToken();
 
           try {
             signedS3Url = (
