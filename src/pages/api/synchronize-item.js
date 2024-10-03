@@ -73,78 +73,10 @@ const uploadFileFromFTPToDataManagement = async (
     uploadCompleted: false,
   });
 
-  /**const ChunkSize = 5 << 20;
-    const MaxBatches = 25;
-    const totalParts = Math.ceil(data.byteLength / ChunkSize);
-    let partsUploaded = 0;
-    let uploadUrls = [];
-    let uploadKey;
-    while (partsUploaded < totalParts) {
-      const chunk = data.slice(
-        partsUploaded * ChunkSize,
-        Math.min((partsUploaded + 1) * ChunkSize, data.byteLength)
-      );
-      while (true) {
-        console.debug("Uploading part", partsUploaded + 1);
-        if (uploadUrls.length === 0) {
-          // Automatically retries 429 and 500-599 responses
-          signedS3Url = await this._getUploadUrls(
-            bucketKey,
-            objectKey,
-            Math.min(totalParts - partsUploaded, MaxBatches),
-            partsUploaded + 1,
-            uploadKey,
-            options?.minutesExpiration
-          );
-          uploadUrls = uploadParams.urls.slice();
-          uploadKey = uploadParams.uploadKey;
-        }
-        const url = uploadUrls.shift();
-        try {
-          await this.axios.put(url, chunk);
-          break;
-        } catch (err) {
-          const status = err.response?.status;
-          if (status === 403) {
-            console.debug("Got 403, refreshing upload URLs");
-            uploadUrls = []; // Couldn't this cause an infinite loop? (i.e., could the server keep responding with 403 indefinitely?)
-          } else {
-            throw err;
-          }
-        }
-      }
-      console.debug("Part successfully uploaded", partsUploaded + 1);
-      partsUploaded++;
-    }*/
-
-  try {
-    signedS3Url = (
-      await axios(
-        "https://developer.api.autodesk.com/oss/v2/buckets/" +
-          storageObjectInfo[0] +
-          "/objects/" +
-          storageObjectInfo[1] +
-          "/signeds3upload?minutesExpiration=60",
-        {
-          method: "GET",
-          headers: { Authorization: "Bearer " + accessToken },
-        }
-      )
-    ).data;
-  } catch (error) {
-    await store.setItem("currentSyncFile", {
-      file: ftpFilePath,
-      status: "Error getting signed S3 URL",
-      error: true,
-      uploadCompleted: false,
-    });
-    console.log("Error getting signed S3 URL");
-    console.log(error);
-    return null;
-  }
-
   const ftpConfig = await store.getItem("ftpConfig");
   const client = new Client(0);
+
+  let uploadKey;
 
   try {
     await client.access(ftpConfig);
@@ -160,23 +92,83 @@ const uploadFileFromFTPToDataManagement = async (
 
     await client.downloadTo(writableStream, ftpFilePath);
 
-    console.log("Uploading file to S3...");
+    //console.log("Uploading file to S3...");
     await store.setItem("currentSyncFile", {
       file: ftpFilePath,
       status: "Uploading file to S3",
       error: false,
       uploadCompleted: false,
     });
-    await axios.put(signedS3Url.urls[0], fileBuffer, {
-      headers: {
-        "Content-Type": "application/octet-stream",
-      },
-      maxContentLength: Infinity,
-      maxBodyLength: Infinity,
-      timeout: 2700000,
-    });
 
-    console.log("File uploaded successfully");
+    const ChunkSize = 5 << 20;
+    const MaxBatches = 25;
+    const totalParts = Math.ceil(fileBuffer.byteLength / ChunkSize);
+    //console.log("Total parts:", totalParts);
+    let partsUploaded = 0;
+    let uploadUrls = [];
+    while (partsUploaded < totalParts) {
+      const chunk = fileBuffer.slice(
+        partsUploaded * ChunkSize,
+        Math.min((partsUploaded + 1) * ChunkSize, fileBuffer.byteLength)
+      );
+      while (true) {
+        //console.log("Uploading part", partsUploaded + 1);
+        if (uploadUrls.length === 0) {
+          // Automatically retries 429 and 500-599 responses
+
+          const parts = Math.min(totalParts - partsUploaded, MaxBatches);
+          let endpoint =
+            "https://developer.api.autodesk.com/oss/v2/buckets/" +
+            storageObjectInfo[0] +
+            "/objects/" +
+            storageObjectInfo[1] +
+            `/signeds3upload?minutesExpiration=10&parts=${parts}&firstPart=${
+              partsUploaded + 1
+            }`;
+          if (uploadKey) {
+            endpoint += `&uploadKey=${uploadKey}`;
+          }
+
+          try {
+            signedS3Url = (
+              await axios(endpoint, {
+                method: "GET",
+                headers: { Authorization: "Bearer " + accessToken },
+              })
+            ).data;
+          } catch (error) {
+            await store.setItem("currentSyncFile", {
+              file: ftpFilePath,
+              status: "Error getting signed S3 URL",
+              error: true,
+              uploadCompleted: false,
+            });
+            console.log("Error getting signed S3 URL");
+            console.log(error);
+            return null;
+          }
+
+          uploadUrls = signedS3Url.urls.slice();
+          uploadKey = signedS3Url.uploadKey;
+          //console.log(uploadKey);
+        }
+        const url = uploadUrls.shift();
+        try {
+          await axios.put(url, chunk);
+          break;
+        } catch (err) {
+          const status = err.response?.status;
+          if (status === 403) {
+            console.log("Got 403, refreshing upload URLs");
+            uploadUrls = []; // Couldn't this cause an infinite loop? (i.e., could the server keep responding with 403 indefinitely?)
+          } else {
+            throw err;
+          }
+        }
+      }
+      //console.log("Part successfully uploaded", partsUploaded + 1);
+      partsUploaded++;
+    }
     client.close();
   } catch (error) {
     await store.setItem("currentSyncFile", {
@@ -207,7 +199,7 @@ const uploadFileFromFTPToDataManagement = async (
         "/signeds3upload",
       {
         headers: { Authorization: "Bearer " + accessToken },
-        data: { uploadKey: signedS3Url.uploadKey },
+        data: { uploadKey },
         method: "POST",
       }
     );
@@ -321,7 +313,7 @@ const getAccessToken = async () => {
 };
 
 const handler = async (req, res) => {
-  console.log(req.body);
+  //console.log(req.body);
   if (
     req.method !== "POST" ||
     req.body.ftpPath === undefined ||
