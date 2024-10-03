@@ -4,7 +4,71 @@ import { Client } from "basic-ftp";
 import axios from "axios";
 import { Writable } from "stream";
 
-const uploadFileFromFTPToS3 = async (ftpConfig, ftpFilePath, s3SignedUrl) => {
+const uploadFileFromFTPToDataManagement = async (
+  projectId,
+  fileName,
+  folderId,
+  ftpFilePath,
+  accessToken
+) => {
+  let storageLocation;
+  try {
+    storageLocation = (
+      await axios(
+        `https://developer.api.autodesk.com/data/v1/projects/${projectId}/storage`,
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer " + accessToken },
+          data: {
+            jsonapi: { version: "1.0" },
+            data: {
+              type: "objects",
+              attributes: {
+                name: fileName,
+              },
+              relationships: {
+                target: {
+                  data: { type: "folders", id: folderId },
+                },
+              },
+            },
+          },
+        }
+      )
+    ).data.data;
+  } catch (error) {
+    console.log(error);
+    return null;
+  }
+
+  let storageObjectInfo = storageLocation.id;
+  storageObjectInfo = storageObjectInfo.replace(
+    "urn:adsk.objects:os.object:",
+    ""
+  );
+  storageObjectInfo = storageObjectInfo.split("/");
+
+  let signedS3Url = null;
+
+  try {
+    signedS3Url = (
+      await axios(
+        "https://developer.api.autodesk.com/oss/v2/buckets/" +
+          storageObjectInfo[0] +
+          "/objects/" +
+          storageObjectInfo[1] +
+          "/signeds3upload?minutesExpiration=60",
+        {
+          method: "GET",
+          headers: { Authorization: "Bearer " + accessToken },
+        }
+      )
+    ).data;
+  } catch (error) {
+    console.log(error);
+    return null;
+  }
+
   const client = new Client(0);
 
   try {
@@ -22,7 +86,7 @@ const uploadFileFromFTPToS3 = async (ftpConfig, ftpFilePath, s3SignedUrl) => {
     await client.downloadTo(writableStream, ftpFilePath);
 
     console.log("Uploading file to S3...");
-    await axios.put(s3SignedUrl, fileBuffer, {
+    await axios.put(signedS3Url.urls[0], fileBuffer, {
       headers: {
         "Content-Type": "application/octet-stream",
       },
@@ -36,9 +100,28 @@ const uploadFileFromFTPToS3 = async (ftpConfig, ftpFilePath, s3SignedUrl) => {
   } catch (error) {
     console.error("Error uploading file:", error);
     client.close();
-    return "Error";
+    return null;
   }
-  return "Success";
+
+  try {
+    await axios(
+      "https://developer.api.autodesk.com/oss/v2/buckets/" +
+        storageObjectInfo[0] +
+        "/objects/" +
+        storageObjectInfo[1] +
+        "/signeds3upload",
+      {
+        headers: { Authorization: "Bearer " + accessToken },
+        data: { uploadKey: signedS3Url.uploadKey },
+        method: "POST",
+      }
+    );
+  } catch (error) {
+    console.log(error);
+    return null;
+  }
+
+  return storageLocation.id;
 };
 
 const refreshToken = async () => {
@@ -76,6 +159,39 @@ const refreshToken = async () => {
     return "Unauthorized";
   }
   return "Success";
+};
+
+const getFolderContents = async (
+  hubId,
+  projectId,
+  path,
+  accessToken,
+  filterType
+) => {
+  try {
+    return (
+      await axios(
+        process.env.NEXT_PUBLIC_API_URL_DOMAIN +
+          "/api/acc/v2/query-project-folder-contents/" +
+          hubId +
+          "/" +
+          projectId +
+          "?application_token=" +
+          process.env.APPLICATION_TOKEN,
+        {
+          method: "POST",
+          headers: { Authorization: accessToken },
+          data: {
+            path,
+            filterType,
+            useCache: false,
+          },
+        }
+      )
+    ).data;
+  } catch (error) {
+    console.log(error);
+  }
 };
 
 const handler = async (req, res) => {
@@ -121,26 +237,14 @@ const handler = async (req, res) => {
 
   try {
     if (req.body.isFolder !== undefined && req.body.isFolder === true) {
-      let folderContents = (
-        await axios(
-          process.env.NEXT_PUBLIC_API_URL_DOMAIN +
-            "/api/acc/v2/query-project-folder-contents/" +
-            req.body.hubId +
-            "/" +
-            req.body.projectId +
-            "?application_token=" +
-            process.env.APPLICATION_TOKEN,
-          {
-            method: "POST",
-            headers: { Authorization: accessToken },
-            data: {
-              path: req.body.accPath,
-              filterType: ["folders"],
-              useCache: false,
-            },
-          }
-        )
-      ).data;
+      const folderContents = await getFolderContents(
+        req.body.hubId,
+        req.body.projectId,
+        req.body.accPath,
+        accessToken,
+        ["folders"]
+      );
+
       const folderExists = folderContents.find(
         (item) => item.attributes.name === req.body.fileName
       );
@@ -179,26 +283,13 @@ const handler = async (req, res) => {
         return;
       }
     } else {
-      let folderContents = (
-        await axios(
-          process.env.NEXT_PUBLIC_API_URL_DOMAIN +
-            "/api/acc/v2/query-project-folder-contents/" +
-            req.body.hubId +
-            "/" +
-            req.body.projectId +
-            "?application_token=" +
-            process.env.APPLICATION_TOKEN,
-          {
-            method: "POST",
-            headers: { Authorization: accessToken },
-            data: {
-              path: req.body.accPath,
-              filterType: ["items"],
-              useCache: false,
-            },
-          }
-        )
-      ).data;
+      const folderContents = await getFolderContents(
+        req.body.hubId,
+        req.body.projectId,
+        req.body.accPath,
+        accessToken,
+        ["items"]
+      );
 
       const itemExists = folderContents.find(
         (item) =>
@@ -206,73 +297,13 @@ const handler = async (req, res) => {
       );
       if (itemExists === undefined) {
         console.log("Item does not exist");
-        const storageLocation = (
-          await axios(
-            `https://developer.api.autodesk.com/data/v1/projects/${req.body.projectId}/storage`,
-            {
-              method: "POST",
-              headers: { Authorization: "Bearer " + accessToken },
-              data: {
-                jsonapi: { version: "1.0" },
-                data: {
-                  type: "objects",
-                  attributes: {
-                    name: req.body.fileName,
-                  },
-                  relationships: {
-                    target: {
-                      data: { type: "folders", id: req.body.accFolderId },
-                    },
-                  },
-                },
-              },
-            }
-          )
-        ).data.data;
 
-        let storageObjectInfo = storageLocation.id;
-        storageObjectInfo = storageObjectInfo.replace(
-          "urn:adsk.objects:os.object:",
-          ""
-        );
-        storageObjectInfo = storageObjectInfo.split("/");
-
-        let signedS3Url = (
-          await axios(
-            "https://developer.api.autodesk.com/oss/v2/buckets/" +
-              storageObjectInfo[0] +
-              "/objects/" +
-              storageObjectInfo[1] +
-              "/signeds3upload?minutesExpiration=60",
-            {
-              method: "GET",
-              headers: { Authorization: "Bearer " + accessToken },
-            }
-          )
-        ).data;
-
-        const uploadResponse = await uploadFileFromFTPToS3(
-          ftpConfig,
+        const storageLocationId = await uploadFileFromFTPToDataManagement(
+          req.body.projectId,
+          req.body.fileName,
+          req.body.accFolderId,
           req.body.ftpPath + "/" + req.body.fileName,
-          signedS3Url.urls[0]
-        );
-
-        if (uploadResponse === "Error") {
-          res.send("Error");
-          return;
-        }
-
-        await axios(
-          "https://developer.api.autodesk.com/oss/v2/buckets/" +
-            storageObjectInfo[0] +
-            "/objects/" +
-            storageObjectInfo[1] +
-            "/signeds3upload",
-          {
-            headers: { Authorization: "Bearer " + accessToken },
-            data: { uploadKey: signedS3Url.uploadKey },
-            method: "POST",
-          }
+          accessToken
         );
 
         await axios(
@@ -320,7 +351,7 @@ const handler = async (req, res) => {
                     storage: {
                       data: {
                         type: "objects",
-                        id: storageLocation.id,
+                        id: storageLocationId,
                       },
                     },
                   },
@@ -348,73 +379,12 @@ const handler = async (req, res) => {
         if (req.body.lastDate !== lastDate) {
           console.log("Updating file");
 
-          const storageLocation = (
-            await axios(
-              `https://developer.api.autodesk.com/data/v1/projects/${req.body.projectId}/storage`,
-              {
-                method: "POST",
-                headers: { Authorization: "Bearer " + accessToken },
-                data: {
-                  jsonapi: { version: "1.0" },
-                  data: {
-                    type: "objects",
-                    attributes: {
-                      name: req.body.fileName,
-                    },
-                    relationships: {
-                      target: {
-                        data: { type: "folders", id: req.body.accFolderId },
-                      },
-                    },
-                  },
-                },
-              }
-            )
-          ).data.data;
-
-          let storageObjectInfo = storageLocation.id;
-          storageObjectInfo = storageObjectInfo.replace(
-            "urn:adsk.objects:os.object:",
-            ""
-          );
-          storageObjectInfo = storageObjectInfo.split("/");
-
-          let signedS3Url = (
-            await axios(
-              "https://developer.api.autodesk.com/oss/v2/buckets/" +
-                storageObjectInfo[0] +
-                "/objects/" +
-                storageObjectInfo[1] +
-                "/signeds3upload?minutesExpiration=60",
-              {
-                method: "GET",
-                headers: { Authorization: "Bearer " + accessToken },
-              }
-            )
-          ).data;
-
-          const uploadResponse = await uploadFileFromFTPToS3(
-            ftpConfig,
+          const storageLocationId = await uploadFileFromFTPToDataManagement(
+            req.body.projectId,
+            req.body.fileName,
+            req.body.accFolderId,
             req.body.ftpPath + "/" + req.body.fileName,
-            signedS3Url.urls[0]
-          );
-
-          if (uploadResponse === "Error") {
-            res.send("Error");
-            return;
-          }
-
-          await axios(
-            "https://developer.api.autodesk.com/oss/v2/buckets/" +
-              storageObjectInfo[0] +
-              "/objects/" +
-              storageObjectInfo[1] +
-              "/signeds3upload",
-            {
-              headers: { Authorization: "Bearer " + accessToken },
-              data: { uploadKey: signedS3Url.uploadKey },
-              method: "POST",
-            }
+            accessToken
           );
 
           await axios(
@@ -442,7 +412,7 @@ const handler = async (req, res) => {
                     storage: {
                       data: {
                         type: "objects",
-                        id: storageLocation.id,
+                        id: storageLocationId,
                       },
                     },
                   },
