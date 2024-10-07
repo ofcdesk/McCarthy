@@ -157,13 +157,15 @@ const uploadFileFromFTPToDataManagement = async (
           await axios.put(url, chunk);
           break;
         } catch (err) {
-          const status = err.response?.status;
-          if (status === 403) {
-            console.log("Got 403, refreshing upload URLs");
-            uploadUrls = []; // Couldn't this cause an infinite loop? (i.e., could the server keep responding with 403 indefinitely?)
-          } else {
-            throw err;
-          }
+          await store.setItem("currentSyncFile", {
+            file: ftpFilePath,
+            status: "Error uploading file to S3",
+            error: true,
+            uploadCompleted: false,
+          });
+          console.error("Error uploading file:", err);
+          client.close();
+          return null;
         }
       }
       //console.log("Part successfully uploaded", partsUploaded + 1);
@@ -344,6 +346,8 @@ const handler = async (req, res) => {
     status: true,
     lastDate: new Date().getTime(),
   });
+
+  console.log(req.body.fileName);
 
   if (req.body.isFolder !== undefined && req.body.isFolder === true) {
     const folderContents = await getFolderContents(
