@@ -88,17 +88,11 @@ const uploadFileFromFTPToDataManagement = async (
 
   try {
     await client.access(ftpConfig);
+    client.availableListCommands = ["LIST"];
 
-    let fileBuffer = Buffer.alloc(0);
+    //console.log("Downloading file from FTP...");
 
-    const writableStream = new Writable({
-      write(chunk, encoding, callback) {
-        fileBuffer = Buffer.concat([fileBuffer, chunk]);
-        callback();
-      },
-    });
-
-    await client.downloadTo(writableStream, ftpFilePath);
+    const fileSize = await client.size(ftpFilePath);
 
     //console.log("Uploading file to S3...");
     await store.setItem("currentSyncFile", {
@@ -110,86 +104,185 @@ const uploadFileFromFTPToDataManagement = async (
 
     const ChunkSize = 5 << 20;
     const MaxBatches = 25;
-    const totalParts = Math.ceil(fileBuffer.byteLength / ChunkSize);
+    const totalParts = Math.ceil(fileSize / ChunkSize);
+    let totalBytesUploaded = 0;
     //console.log("Total parts:", totalParts);
     let partsUploaded = 0;
     let uploadUrls = [];
-    while (partsUploaded < totalParts) {
-      const chunk = fileBuffer.slice(
-        partsUploaded * ChunkSize,
-        Math.min((partsUploaded + 1) * ChunkSize, fileBuffer.byteLength)
-      );
-      while (true) {
-        console.log("Uploading part", partsUploaded + 1);
-        if (uploadUrls.length === 0) {
-          // Automatically retries 429 and 500-599 responses
 
-          const parts = Math.min(totalParts - partsUploaded, MaxBatches);
-          let endpoint =
-            "https://developer.api.autodesk.com/oss/v2/buckets/" +
-            storageObjectInfo[0] +
-            "/objects/" +
-            storageObjectInfo[1] +
-            `/signeds3upload?minutesExpiration=60&parts=${parts}&firstPart=${
-              partsUploaded + 1
-            }`;
-          if (uploadKey) {
-            endpoint += `&uploadKey=${uploadKey}`;
-          }
+    let fileBuffer = Buffer.alloc(0);
 
-          accessToken = await getAccessToken();
-          if (accessToken === null) {
-            await store.setItem("currentSyncFile", {
-              file: ftpFilePath,
-              status: "Error refreshing ACC token",
-              error: true,
-              uploadCompleted: false,
-            });
-            return null;
-          }
-
-          try {
-            signedS3Url = (
-              await axios(endpoint, {
-                method: "GET",
-                headers: { Authorization: "Bearer " + accessToken },
-              })
-            ).data;
-          } catch (error) {
-            await store.setItem("currentSyncFile", {
-              file: ftpFilePath,
-              status: "Error getting signed S3 URL",
-              error: true,
-              uploadCompleted: false,
-            });
-            console.log("Error getting signed S3 URL");
-            console.log(error);
-            return null;
-          }
-
-          uploadUrls = signedS3Url.urls.slice();
-          uploadKey = signedS3Url.uploadKey;
-          //console.log(uploadKey);
+    const uploadProcess = new Writable({
+      write: async (chunk, encoding, callback) => {
+        fileBuffer = Buffer.concat([fileBuffer, chunk]);
+        totalBytesUploaded += chunk.byteLength;
+        //console.log(`Received ${totalBytesUploaded / 1048576}mb.`);
+        //console.log(`Completed ${(totalBytesUploaded / fileSize) * 100}%`);
+        if (fileBuffer.byteLength < ChunkSize) {
+          callback();
+          return;
         }
-        const url = uploadUrls.shift();
-        try {
-          await axios.put(url, chunk);
-          break;
-        } catch (err) {
+        //console.log("Downloading part", partsUploaded + 1);
+        //console.log("Part size:", fileBuffer.byteLength);
+
+        while (true) {
+          //console.log("Uploading part", partsUploaded + 1);
+          if (uploadUrls.length === 0) {
+            // Automatically retries 429 and 500-599 responses
+
+            const parts = Math.min(totalParts - partsUploaded, MaxBatches);
+            let endpoint =
+              "https://developer.api.autodesk.com/oss/v2/buckets/" +
+              storageObjectInfo[0] +
+              "/objects/" +
+              storageObjectInfo[1] +
+              `/signeds3upload?minutesExpiration=60&parts=${parts}&firstPart=${
+                partsUploaded + 1
+              }`;
+            if (uploadKey) {
+              endpoint += `&uploadKey=${uploadKey}`;
+            }
+
+            accessToken = await getAccessToken();
+            if (accessToken === null) {
+              await store.setItem("currentSyncFile", {
+                file: ftpFilePath,
+                status: "Error refreshing ACC token",
+                error: true,
+                uploadCompleted: false,
+              });
+              return null;
+            }
+
+            try {
+              signedS3Url = (
+                await axios(endpoint, {
+                  method: "GET",
+                  headers: { Authorization: "Bearer " + accessToken },
+                })
+              ).data;
+            } catch (error) {
+              await store.setItem("currentSyncFile", {
+                file: ftpFilePath,
+                status: "Error getting signed S3 URL",
+                error: true,
+                uploadCompleted: false,
+              });
+              console.log("Error getting signed S3 URL");
+              console.log(error);
+              uploadKey = null;
+              return null;
+            }
+
+            uploadUrls = signedS3Url.urls.slice();
+            uploadKey = signedS3Url.uploadKey;
+          }
+          const url = uploadUrls.shift();
+          try {
+            await axios.put(url, fileBuffer);
+            break;
+          } catch (err) {
+            await store.setItem("currentSyncFile", {
+              file: ftpFilePath,
+              status: "Error uploading file to S3",
+              error: true,
+              uploadCompleted: false,
+            });
+            console.log("Error uploading file:");
+            console.log(err);
+            if (err.response) {
+              console.log(JSON.stringify(err.response));
+            }
+            client.close();
+            uploadKey = null;
+            return null;
+          }
+        }
+        //console.log("Part successfully uploaded", partsUploaded + 1);
+        partsUploaded++;
+        fileBuffer = Buffer.alloc(0);
+        callback();
+      },
+    });
+    await client.downloadTo(uploadProcess, ftpFilePath);
+
+    //Final chunk upload
+    while (true) {
+      //console.log("Uploading part", partsUploaded + 1);
+      if (uploadUrls.length === 0) {
+        // Automatically retries 429 and 500-599 responses
+
+        const parts = Math.min(totalParts - partsUploaded, MaxBatches);
+        let endpoint =
+          "https://developer.api.autodesk.com/oss/v2/buckets/" +
+          storageObjectInfo[0] +
+          "/objects/" +
+          storageObjectInfo[1] +
+          `/signeds3upload?minutesExpiration=60&parts=${parts}&firstPart=${
+            partsUploaded + 1
+          }`;
+        if (uploadKey) {
+          endpoint += `&uploadKey=${uploadKey}`;
+        }
+
+        accessToken = await getAccessToken();
+        if (accessToken === null) {
           await store.setItem("currentSyncFile", {
             file: ftpFilePath,
-            status: "Error uploading file to S3",
+            status: "Error refreshing ACC token",
             error: true,
             uploadCompleted: false,
           });
-          console.error("Error uploading file:", err);
-          client.close();
           return null;
         }
+
+        try {
+          signedS3Url = (
+            await axios(endpoint, {
+              method: "GET",
+              headers: { Authorization: "Bearer " + accessToken },
+            })
+          ).data;
+        } catch (error) {
+          await store.setItem("currentSyncFile", {
+            file: ftpFilePath,
+            status: "Error getting signed S3 URL",
+            error: true,
+            uploadCompleted: false,
+          });
+          console.log("Error getting signed S3 URL");
+          console.log(error);
+          uploadKey = null;
+          return null;
+        }
+
+        uploadUrls = signedS3Url.urls.slice();
+        uploadKey = signedS3Url.uploadKey;
       }
-      //console.log("Part successfully uploaded", partsUploaded + 1);
-      partsUploaded++;
+      const url = uploadUrls.shift();
+      try {
+        await axios.put(url, fileBuffer);
+        break;
+      } catch (err) {
+        await store.setItem("currentSyncFile", {
+          file: ftpFilePath,
+          status: "Error uploading file to S3",
+          error: true,
+          uploadCompleted: false,
+        });
+        console.log("Error uploading file:");
+        console.log(err);
+        if (err.response) {
+          console.log(JSON.stringify(err.response));
+        }
+        client.close();
+        uploadKey = null;
+        return null;
+      }
     }
+    //console.log("Part successfully uploaded", partsUploaded + 1);
+    partsUploaded++;
+
     client.close();
   } catch (error) {
     await store.setItem("currentSyncFile", {
@@ -198,8 +291,16 @@ const uploadFileFromFTPToDataManagement = async (
       error: true,
       uploadCompleted: false,
     });
-    console.error("Error uploading file:", error);
+    console.log("Error uploading file:");
+    if (error.response) {
+      console.log(JSON.stringify(error.response));
+    }
     client.close();
+    uploadKey = null;
+    return null;
+  }
+
+  if (uploadKey === null) {
     return null;
   }
 
@@ -497,7 +598,7 @@ const handler = async (req, res) => {
       );
 
       const accessToken = await getAccessToken();
-      if (accessToken === null) {
+      if (accessToken === null || storageLocationId === null) {
         await store.setItem("currentSyncFile", {
           file: req.body.ftpPath + "/" + req.body.fileName,
           status: "Error refreshing ACC token",
@@ -597,7 +698,7 @@ const handler = async (req, res) => {
         );
 
         const accessToken = await getAccessToken();
-        if (accessToken === null) {
+        if (accessToken === null || storageLocationId === null) {
           await store.setItem("currentSyncFile", {
             file: req.body.ftpPath + "/" + req.body.fileName,
             status: "Error refreshing ACC token",

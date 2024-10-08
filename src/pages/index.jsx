@@ -1302,6 +1302,7 @@ export default function ConfigurePage() {
                 <Button
                   disabled={
                     true
+                    //false
                     //selectedAccFolder === undefined ||
                     //selectedFtpFolder === undefined ||
                     //otherInstanceSynchronizationInProgress === true
