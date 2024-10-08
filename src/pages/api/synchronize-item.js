@@ -82,6 +82,7 @@ const uploadFileFromFTPToDataManagement = async (
 
   const ftpConfig = await store.getItem("ftpConfig");
   const client = new Client(0);
+  client.ftp.verbose = true;
 
   let uploadKey;
 
@@ -129,7 +130,7 @@ const uploadFileFromFTPToDataManagement = async (
             storageObjectInfo[0] +
             "/objects/" +
             storageObjectInfo[1] +
-            `/signeds3upload?minutesExpiration=10&parts=${parts}&firstPart=${
+            `/signeds3upload?minutesExpiration=60&parts=${parts}&firstPart=${
               partsUploaded + 1
             }`;
           if (uploadKey) {
