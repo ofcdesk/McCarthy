@@ -120,7 +120,7 @@ const uploadFileFromFTPToDataManagement = async (
         Math.min((partsUploaded + 1) * ChunkSize, fileBuffer.byteLength)
       );
       while (true) {
-        //console.log("Uploading part", partsUploaded + 1);
+        console.log("Uploading part", partsUploaded + 1);
         if (uploadUrls.length === 0) {
           // Automatically retries 429 and 500-599 responses
 
