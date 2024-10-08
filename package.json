@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "NODE_OPTIONS='--max-old-space-size=3096' next build",
     "export": "next build && next export",
     "start": "next start",
-    "size": "node --max_old_space_size=4096",
+    "size": "node --max_old_space_size=3096",
     "fix:prettier": "prettier --write . '!.next' '!.node_modules'",
     "lint": "next lint",
     "ec2": "ssh -i mccarthy-backend.pem ec2-user@mccarthy.ofcdesk.com",
