@@ -11,6 +11,15 @@ const uploadFileFromFTPToDataManagement = async (
   ftpFilePath
 ) => {
   let accessToken = await getAccessToken();
+  if (accessToken === null) {
+    await store.setItem("currentSyncFile", {
+      file: ftpFilePath,
+      status: "Error refreshing ACC token",
+      error: true,
+      uploadCompleted: false,
+    });
+    return null;
+  }
 
   let storageLocation;
   await store.setItem("currentSyncFile", {
@@ -128,6 +137,15 @@ const uploadFileFromFTPToDataManagement = async (
           }
 
           accessToken = await getAccessToken();
+          if (accessToken === null) {
+            await store.setItem("currentSyncFile", {
+              file: ftpFilePath,
+              status: "Error refreshing ACC token",
+              error: true,
+              uploadCompleted: false,
+            });
+            return null;
+          }
 
           try {
             signedS3Url = (
@@ -185,6 +203,15 @@ const uploadFileFromFTPToDataManagement = async (
   }
 
   accessToken = await getAccessToken();
+  if (accessToken === null) {
+    await store.setItem("currentSyncFile", {
+      file: ftpFilePath,
+      status: "Error refreshing ACC token",
+      error: true,
+      uploadCompleted: false,
+    });
+    return null;
+  }
 
   await store.setItem("currentSyncFile", {
     file: ftpFilePath,
@@ -265,6 +292,15 @@ const getFolderContents = async (
   filterType
 ) => {
   const accessToken = await getAccessToken();
+  if (accessToken === null) {
+    await store.setItem("currentSyncFile", {
+      file: path + "/" + fileName,
+      status: "Error refreshing ACC token",
+      error: true,
+      uploadCompleted: false,
+    });
+    return null;
+  }
   try {
     return (
       await axios(
@@ -305,9 +341,7 @@ const getAccessToken = async () => {
   if (expires_at < new Date().getTime()) {
     const result = await refreshToken();
     if (result === "Unauthorized") {
-      res.statusMessage = "Unauthorized";
-      res.status(401).send("Unauthorized");
-      return;
+      return null;
     }
     accessToken = await store.get("access_token");
   }
@@ -368,6 +402,16 @@ const handler = async (req, res) => {
     );
     if (folderExists === undefined) {
       const accessToken = await getAccessToken();
+      if (accessToken === null) {
+        await store.setItem("currentSyncFile", {
+          file: req.body.ftpPath + "/" + req.body.fileName,
+          status: "Error refreshing ACC token",
+          error: true,
+          uploadCompleted: false,
+        });
+        res.send("Error");
+        return;
+      }
 
       try {
         const createdFolder = (
@@ -444,6 +488,15 @@ const handler = async (req, res) => {
       );
 
       const accessToken = await getAccessToken();
+      if (accessToken === null) {
+        await store.setItem("currentSyncFile", {
+          file: req.body.ftpPath + "/" + req.body.fileName,
+          status: "Error refreshing ACC token",
+          error: true,
+          uploadCompleted: false,
+        });
+        return;
+      }
 
       try {
         await axios(
@@ -535,6 +588,16 @@ const handler = async (req, res) => {
         );
 
         const accessToken = await getAccessToken();
+        if (accessToken === null) {
+          await store.setItem("currentSyncFile", {
+            file: req.body.ftpPath + "/" + req.body.fileName,
+            status: "Error refreshing ACC token",
+            error: true,
+            uploadCompleted: false,
+          });
+          return;
+        }
+
         try {
           await axios(
             `https://developer.api.autodesk.com/data/v1/projects/${req.body.projectId}/versions`,
