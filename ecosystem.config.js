@@ -18,7 +18,7 @@ module.exports = {
       repo: "git@github.com:ofcdesk/McCarthy.git",
       path: "~/apps",
       "post-deploy":
-        "pm2 stop McCarthy-Backend; yarn; yarn build ; pm2 start McCarthy-Backend --time",
+        "pm2 stop McCarthy-Backend; yarn; yarn build --max_old_space_size=3096; pm2 start McCarthy-Backend --time",
     },
   },
 };

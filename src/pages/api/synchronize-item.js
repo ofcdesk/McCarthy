@@ -250,9 +250,17 @@ const uploadFileFromFTPToDataManagement = async (
 const refreshToken = async () => {
   try {
     console.log("refreshing token");
-    await store.init();
     let accessToken = await store.get("access_token");
     const refreshToken = await store.get("refresh_token");
+
+    if (
+      !accessToken ||
+      !refreshToken ||
+      accessToken === "undefined" ||
+      refreshToken === "undefined"
+    ) {
+      return "Unauthorized";
+    }
 
     const newToken = await axios.get(
       process.env.NEXT_PUBLIC_API_URL_DOMAIN +
@@ -381,7 +389,7 @@ const handler = async (req, res) => {
     lastDate: new Date().getTime(),
   });
 
-  console.log(req.body.fileName);
+  console.log(req.body.ftpPath + "/" + req.body.fileName);
 
   if (req.body.isFolder !== undefined && req.body.isFolder === true) {
     const folderContents = await getFolderContents(
