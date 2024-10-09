@@ -769,7 +769,7 @@ const handler = async (req, res) => {
         } catch (error) {
           await store.setItem("currentSyncFile", {
             file: req.body.ftpPath + "/" + req.body.fileName,
-            status: "Error updating item on Data Managemen",
+            status: "Error updating item on Data Management",
             error: true,
             uploadCompleted: false,
           });
@@ -788,6 +788,7 @@ const handler = async (req, res) => {
     error: false,
     uploadCompleted: true,
   });
+  release();
 };
 
 export default withSessionRoute(handler);
