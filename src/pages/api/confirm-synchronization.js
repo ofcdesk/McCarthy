@@ -1,3 +1,6 @@
+import getConfig from "next/config";
+const { serverRuntimeConfig } = getConfig();
+const { lock } = serverRuntimeConfig;
 import { withSessionRoute } from "lib/withSession";
 const store = require("node-persist");
 
@@ -8,7 +11,8 @@ const handler = async (req, res) => {
     return;
   }
 
-  await store.init();
+  const release = await lock.acquire();
+  await store.init({ writeQueue: true });
 
   await store.set("syncHubId", req.body.hubId);
   await store.set("syncProjectId", req.body.projectId);
@@ -18,6 +22,7 @@ const handler = async (req, res) => {
   await store.set("syncInterval", req.body.interval);
   await store.set("syncWeekDay", req.body.weekDay);
   await store.set("syncHour", req.body.hour);
+  release();
 
   res.send("Success");
 };

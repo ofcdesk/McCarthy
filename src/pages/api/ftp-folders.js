@@ -1,3 +1,6 @@
+import getConfig from "next/config";
+const { serverRuntimeConfig } = getConfig();
+const { lock } = serverRuntimeConfig;
 const store = require("node-persist");
 import { withSessionRoute } from "lib/withSession";
 import { Client } from "basic-ftp";
@@ -17,11 +20,13 @@ const refreshTokenRoute = async (req, res) => {
     res.status(401).send("Unauthorized");
     return;
   }
+  const release = await lock.acquire();
   const client = new Client();
   //client.ftp.verbose = true;
 
-  await store.init();
+  await store.init({ writeQueue: true });
   const ftpConfig = await store.getItem("ftpConfig");
+  release();
 
   try {
     await client.access(ftpConfig);

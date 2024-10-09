@@ -8,7 +8,7 @@ const handler = async (req, res) => {
     return;
   }
 
-  await store.init();
+  await store.init({ writeQueue: true });
 
   await store.set("access_token", req.query.access_token);
   await store.set("refresh_token", req.query.refresh_token);

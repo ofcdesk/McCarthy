@@ -17,7 +17,7 @@ const handler = async (req, res) => {
     URL += "&useCache=true";
   }
 
-  await store.init();
+  await store.init({ writeQueue: true });
   let accessToken = await store.get("access_token");
 
   let userProjects = [];

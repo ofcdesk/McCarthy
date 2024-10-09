@@ -1,3 +1,6 @@
+import getConfig from "next/config";
+const { serverRuntimeConfig } = getConfig();
+const { lock } = serverRuntimeConfig;
 import axios from "axios";
 const store = require("node-persist");
 import { withSessionRoute } from "lib/withSession";
@@ -22,8 +25,10 @@ const refreshTokenRoute = async (req, res) => {
     return;
   }
 
-  await store.init();
+  const release = await lock.acquire();
+  await store.init({ writeQueue: true });
   let accessToken = await store.get("access_token");
+  release();
   try {
     let folderContents = (
       await axios(

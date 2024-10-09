@@ -494,7 +494,7 @@ const handler = async (req, res) => {
 
   const release = await lock.acquire();
 
-  await store.init();
+  await store.init({ writeQueue: true });
   await store.setItem("synchronizationStatus", {
     status: true,
     lastDate: new Date().getTime(),

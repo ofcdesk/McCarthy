@@ -8,7 +8,7 @@ const handler = async (req, res) => {
     return;
   }
 
-  await store.init();
+  await store.init({ writeQueue: true });
   await store.clear();
 
   res.send("Success");

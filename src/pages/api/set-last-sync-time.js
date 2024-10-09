@@ -8,7 +8,7 @@ const handler = async (req, res) => {
     return;
   }
 
-  await store.init();
+  await store.init({ writeQueue: true });
 
   await store.set("syncLastTime", req.body.lastTime);
 

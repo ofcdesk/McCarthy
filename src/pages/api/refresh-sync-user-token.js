@@ -1,3 +1,6 @@
+import getConfig from "next/config";
+const { serverRuntimeConfig } = getConfig();
+const { lock } = serverRuntimeConfig;
 const store = require("node-persist");
 import axios from "axios";
 import { withSessionRoute } from "lib/withSession";
@@ -5,7 +8,7 @@ import { withSessionRoute } from "lib/withSession";
 const refreshToken = async () => {
   try {
     console.log("refreshing token");
-    await store.init();
+    await store.init({ writeQueue: true });
     let accessToken = await store.get("access_token");
     const refreshToken = await store.get("refresh_token");
 
@@ -50,7 +53,9 @@ const handler = async (req, res) => {
     res.status(401).send("Unauthorized");
     return;
   }
+  const release = await lock.acquire();
   const result = await refreshToken();
+  release();
 
   if (result === "Unauthorized") {
     res.statusMessage = "Unauthorized";
