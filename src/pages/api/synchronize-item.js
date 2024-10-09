@@ -1,3 +1,6 @@
+import getConfig from "next/config";
+const { serverRuntimeConfig } = getConfig();
+const { lock } = serverRuntimeConfig;
 const store = require("node-persist");
 import { withSessionRoute } from "lib/withSession";
 import { Client } from "basic-ftp";
@@ -28,6 +31,7 @@ const uploadFileFromFTPToDataManagement = async (
     error: false,
     uploadCompleted: false,
   });
+  console.log("Creating storage location");
   try {
     storageLocation = (
       await axios(
@@ -82,7 +86,7 @@ const uploadFileFromFTPToDataManagement = async (
 
   const ftpConfig = await store.getItem("ftpConfig");
   const client = new Client(0);
-  client.ftp.verbose = true;
+  //client.ftp.verbose = true;
 
   let uploadKey;
 
@@ -90,7 +94,7 @@ const uploadFileFromFTPToDataManagement = async (
     await client.access(ftpConfig);
     client.availableListCommands = ["LIST"];
 
-    //console.log("Downloading file from FTP...");
+    console.log("Downloading file from FTP...");
 
     const fileSize = await client.size(ftpFilePath);
 
@@ -106,7 +110,7 @@ const uploadFileFromFTPToDataManagement = async (
     const MaxBatches = 25;
     const totalParts = Math.ceil(fileSize / ChunkSize);
     let totalBytesUploaded = 0;
-    //console.log("Total parts:", totalParts);
+    console.log("Total parts:", totalParts);
     let partsUploaded = 0;
     let uploadUrls = [];
 
@@ -122,11 +126,11 @@ const uploadFileFromFTPToDataManagement = async (
           callback();
           return;
         }
-        //console.log("Downloading part", partsUploaded + 1);
+        console.log("Downloading part", partsUploaded + 1);
         //console.log("Part size:", fileBuffer.byteLength);
 
         while (true) {
-          //console.log("Uploading part", partsUploaded + 1);
+          console.log("Uploading part", partsUploaded + 1);
           if (uploadUrls.length === 0) {
             // Automatically retries 429 and 500-599 responses
 
@@ -198,7 +202,7 @@ const uploadFileFromFTPToDataManagement = async (
             return null;
           }
         }
-        //console.log("Part successfully uploaded", partsUploaded + 1);
+        console.log("Part successfully uploaded", partsUploaded + 1);
         partsUploaded++;
         fileBuffer = Buffer.alloc(0);
         callback();
@@ -208,7 +212,7 @@ const uploadFileFromFTPToDataManagement = async (
 
     //Final chunk upload
     while (true) {
-      //console.log("Uploading part", partsUploaded + 1);
+      console.log("Uploading part", partsUploaded + 1);
       if (uploadUrls.length === 0) {
         // Automatically retries 429 and 500-599 responses
 
@@ -262,6 +266,7 @@ const uploadFileFromFTPToDataManagement = async (
       const url = uploadUrls.shift();
       try {
         await axios.put(url, fileBuffer);
+        console.log("Final Part successfully uploaded");
         break;
       } catch (err) {
         await store.setItem("currentSyncFile", {
@@ -321,6 +326,8 @@ const uploadFileFromFTPToDataManagement = async (
     error: false,
     uploadCompleted: false,
   });
+
+  console.log("Finalizing upload");
   try {
     await axios(
       "https://developer.api.autodesk.com/oss/v2/buckets/" +
@@ -485,6 +492,8 @@ const handler = async (req, res) => {
     return;
   }
 
+  const release = await lock.acquire();
+
   await store.init();
   await store.setItem("synchronizationStatus", {
     status: true,
@@ -504,6 +513,7 @@ const handler = async (req, res) => {
 
     if (folderContents === null) {
       res.send("Error");
+      release();
       return;
     }
 
@@ -520,6 +530,7 @@ const handler = async (req, res) => {
           uploadCompleted: false,
         });
         res.send("Error");
+        release();
         return;
       }
 
@@ -552,15 +563,18 @@ const handler = async (req, res) => {
           )
         ).data;
         res.send(createdFolder.data.id);
+        release();
         return;
       } catch (error) {
         console.log("Error creating folder on Data Management");
         console.log(error);
         res.send("Error");
+        release();
         return;
       }
     } else {
       res.send(folderExists.id);
+      release();
       return;
     }
   } else {
@@ -580,6 +594,7 @@ const handler = async (req, res) => {
     );
 
     if (folderContents === null) {
+      release();
       return;
     }
 
@@ -605,6 +620,7 @@ const handler = async (req, res) => {
           error: true,
           uploadCompleted: false,
         });
+        release();
         return;
       }
 
@@ -673,6 +689,7 @@ const handler = async (req, res) => {
         });
         console.log("Error creating item on Data Management");
         console.log(error);
+        release();
         return;
       }
 
@@ -705,6 +722,7 @@ const handler = async (req, res) => {
             error: true,
             uploadCompleted: false,
           });
+          release();
           return;
         }
 
@@ -757,6 +775,7 @@ const handler = async (req, res) => {
           });
           console.log("Error updating item on Data Management");
           console.log(error);
+          release();
           return;
         }
       }
