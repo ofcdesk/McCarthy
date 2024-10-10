@@ -358,28 +358,7 @@ process.stdin.on("data", async (data) => {
   await StorageService.init();
   await SiHubService.init();
 
-  const folderContents = await SiHubService.getFolderContents(
-    _data.hubId,
-    _data.projectId,
-    _data.accPath,
-    ["items"]
-  );
-
-  if (folderContents === null) {
-    console.log("Error getting folder contents");
-    await StorageService.setFileSyncStatus(
-      _data.ftpPath + "/" + _data.fileName,
-      "Error on getting folder contents",
-      true,
-      false
-    );
-    return;
-  }
-
-  const itemExists = folderContents.find(
-    (item) => item.attributes.extension.data.sourceFileName === _data.fileName
-  );
-  if (itemExists === undefined) {
+  if (_data.accFileId === undefined) {
     console.log("Item does not exist");
 
     const storageLocationId = await uploadFileFromFTPToDataManagement(
@@ -458,7 +437,9 @@ process.stdin.on("data", async (data) => {
         false
       );
       console.log("Error creating item on Data Management");
-      console.log(error);
+      if (error?.response?.data) {
+        console.log(error.response.data);
+      }
       return;
     }
 
@@ -508,7 +489,7 @@ process.stdin.on("data", async (data) => {
                   item: {
                     data: {
                       type: "items",
-                      id: itemExists.id,
+                      id: _data.accFileId,
                     },
                   },
                   storage: {

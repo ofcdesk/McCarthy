@@ -83,8 +83,8 @@ export default function ConfigurePage() {
   const [accProjects, setAccProjects] = useState([]);
   const [selectedAccProject, setSelectedAccProject] = useState(null);
   const [synchronizationStatus, setSynchronizationStatus] = useState(
-    //"You need to select an ACC project and a FTP folder to schedule the synchronization interval and hit the CONFIRM SCHEDULE button"
-    "Schedule unavailable"
+    "You need to select an ACC project and a FTP folder to schedule the synchronization interval and hit the CONFIRM SCHEDULE button"
+    //"Schedule unavailable"
   );
   const [scheduleInterval, setScheduleInterval] = useState("DAILY");
   const [intervalHour, setIntervalHour] = useState("12 AM");
@@ -104,39 +104,41 @@ export default function ConfigurePage() {
   }, []);
 
   useEffect(() => {
-    const handleBeforeUnload = (event) => {
-      if (synchronizationInProgress) {
-        const message =
-          "Synchronization is in progress. If you close the page, the synchronization will stop.";
-        event.preventDefault();
-        event.returnValue = message;
-      }
-    };
+    const timerId = setInterval(async () => {
+      try {
+        const inProgress = (
+          await axios.get("/api/synchronization-in-progress-status")
+        ).data;
 
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, [synchronizationInProgress]);
-
-  useEffect(() => {
-    const timerId = setInterval(() => {
-      axios.get("/api/synchronization-in-progress-status").then((response) => {
-        if (response !== undefined && response.data.status === true) {
+        if (inProgress !== undefined && inProgress.status === true) {
           const currentTime = new Date().getTime();
           const differenceInMinutes =
-            (currentTime - response.data.lastDate) / (1000 * 60);
+            (currentTime - inProgress.lastDate) / (1000 * 60);
           if (differenceInMinutes < 60) {
-            //The user could have closed the page and the synchronization would be stuck
             setOtherInstanceSynchronizationInProgress(true);
+
+            const currentSyncItem = (
+              await axios.get("api/synchronization-status")
+            ).data;
+
+            if (currentSyncItem !== undefined) {
+              setSynchronizationInProgress(true);
+              setCurrentSyncFile(
+                currentSyncItem.file + "\n" + currentSyncItem.status
+              );
+            }
           } else {
             setOtherInstanceSynchronizationInProgress(false);
+            setSynchronizationInProgress(false);
           }
         } else {
           setOtherInstanceSynchronizationInProgress(false);
+          setSynchronizationInProgress(false);
         }
-      });
+      } catch (err) {
+        console.log("Error getting synchronization status");
+        console.log(err);
+      }
     }, 3000);
     return () => {
       clearInterval(timerId);
@@ -595,86 +597,7 @@ export default function ConfigurePage() {
     setFetching(false);
   };
 
-  const synchronizeItem = async (ftpPath, accPath, accFolderId) => {
-    const stack = [{ ftpPath, accPath, accFolderId }];
-
-    while (stack.length > 0) {
-      const { ftpPath, accPath, accFolderId } = stack.pop();
-
-      try {
-        const response = (
-          await axios.post("/api/ftp-folders", {
-            path: ftpPath,
-            foldersOnly: false,
-          })
-        ).data;
-
-        for (const item of response) {
-          setCurrentSyncFile(`Syncing ${item.name} from FTP to ACC`);
-
-          try {
-            const accResponse = (
-              await axios.post("/api/synchronize-item", {
-                hubId: selectedAccProject.relationships.hub.data.id,
-                projectId: selectedAccProject.id,
-                ftpPath: ftpPath,
-                accPath: accPath,
-                accFolderId: accFolderId,
-                fileName: item.name,
-                isFolder: item.isDirectory,
-                lastDate: item.rawModifiedAt,
-              })
-            ).data;
-
-            if (accResponse === "Error") {
-              continue;
-            }
-
-            if (item.isDirectory) {
-              // Push the directory onto the stack for later processing
-              stack.push({
-                ftpPath: `${ftpPath}/${item.name}`,
-                accPath: `${accPath}/${item.name}`,
-                accFolderId: accResponse,
-              });
-              continue;
-            }
-
-            let actualStatus = (await axios.get("/api/synchronization-status"))
-              .data;
-            if (
-              actualStatus.status !== undefined &&
-              actualStatus.file !== undefined &&
-              actualStatus.error !== undefined &&
-              actualStatus.uploadCompleted !== undefined
-            ) {
-              while (
-                actualStatus.uploadCompleted === false &&
-                actualStatus.error === false
-              ) {
-                setCurrentSyncFile(
-                  actualStatus.file + "\n" + actualStatus.status
-                );
-                await new Promise((resolve) => setTimeout(resolve, 1000));
-                actualStatus = (await axios.get("/api/synchronization-status"))
-                  .data;
-              }
-            }
-          } catch (err) {
-            console.log("Error on item: " + item.name);
-            console.log(err);
-          }
-        }
-      } catch (err) {
-        console.log("Error during synchronization:", err);
-      }
-    }
-  };
-
   const handleSyncNowPress = async () => {
-    setSynchronizationInProgress(true);
-    setCurrentSyncFile("Reading FTP Folder");
-
     try {
       await axios.post("/api/set-last-sync-time", {
         lastTime: new Date().toLocaleString("en-US", {
@@ -693,24 +616,17 @@ export default function ConfigurePage() {
     } catch (err) {}
 
     try {
-      await synchronizeItem(
-        selectedFtpFolder.id,
-        `Project Files/${selectedAccFolder.id}`,
-        selectedAccFolder.accId
-      );
+      await axios.post("/api/sync-now", {
+        hubId: selectedAccProject.relationships.hub.data.id,
+        projectId: selectedAccProject.id,
+        ftpPath: selectedFtpFolder.id,
+        accPath: `Project Files/${selectedAccFolder.id}`,
+        accFolderId: selectedAccFolder.accId,
+      });
     } catch (err) {
       console.log("Error starting synchronization");
       console.log(err);
     }
-
-    try {
-      await axios.post("/api/finish-synchronization");
-    } catch (err) {
-      console.log("Error finishing synchronization");
-      console.log(err);
-    }
-
-    setCurrentSyncFile("Synchronization Finished");
   };
 
   const handleCloseInProgressSynchronization = () => {
@@ -1308,11 +1224,9 @@ export default function ConfigurePage() {
               <CardActions sx={{ display: "flex", justifyContent: "flex-end" }}>
                 <Button
                   disabled={
-                    true
-                    //false
-                    //selectedAccFolder === undefined ||
-                    //selectedFtpFolder === undefined ||
-                    //otherInstanceSynchronizationInProgress === true
+                    selectedAccFolder === undefined ||
+                    selectedFtpFolder === undefined ||
+                    otherInstanceSynchronizationInProgress === true
                   }
                   onClick={
                     synchronizationStatus === "Synchronization Confirmed"
