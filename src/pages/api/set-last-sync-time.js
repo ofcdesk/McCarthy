@@ -1,5 +1,7 @@
 import { withSessionRoute } from "lib/withSession";
-const store = require("node-persist");
+import getConfig from "next/config";
+const { serverRuntimeConfig } = getConfig();
+const { setLastSyncTime } = serverRuntimeConfig;
 
 const handler = async (req, res) => {
   const user = req.session.user;
@@ -8,9 +10,7 @@ const handler = async (req, res) => {
     return;
   }
 
-  await store.init({ writeQueue: true });
-
-  await store.set("syncLastTime", req.body.lastTime);
+  await setLastSyncTime(req.body.lastTime);
 
   res.send("Success");
 };

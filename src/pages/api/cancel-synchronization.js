@@ -1,5 +1,4 @@
 import { withSessionRoute } from "lib/withSession";
-const store = require("node-persist");
 
 const handler = async (req, res) => {
   const user = req.session.user;

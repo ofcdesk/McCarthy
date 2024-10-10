@@ -1,8 +1,7 @@
+import { withSessionRoute } from "lib/withSession";
 import getConfig from "next/config";
 const { serverRuntimeConfig } = getConfig();
-const { lock } = serverRuntimeConfig;
-import { withSessionRoute } from "lib/withSession";
-const store = require("node-persist");
+const { resetFtpConfig, resetSynchronizationConfig } = serverRuntimeConfig;
 
 const handler = async (req, res) => {
   if (req.method !== "GET") {
@@ -16,18 +15,8 @@ const handler = async (req, res) => {
     return;
   }
 
-  const release = await lock.acquire();
-  await store.removeItem("ftpConfig");
-  await store.removeItem("syncHubId");
-  await store.removeItem("syncProjectId");
-  await store.removeItem("syncProjectName");
-  await store.removeItem("syncAccFolderPath");
-  await store.removeItem("syncFTPFolderPath");
-  await store.removeItem("syncInterval");
-  await store.removeItem("syncWeekDay");
-  await store.removeItem("syncHour");
-  await store.removeItem("syncLastTime");
-  release();
+  await resetFtpConfig();
+  await resetSynchronizationConfig();
 
   res.send({ message: "FTP connection closed" });
 };

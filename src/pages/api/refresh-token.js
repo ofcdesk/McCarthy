@@ -1,7 +1,7 @@
 import axios from "axios";
 import { withSessionRoute } from "lib/withSession";
 
-const refreshTokenRoute = async (req, res) => {
+const handler = async (req, res) => {
   if (req.method !== "GET") {
     res.statusMessage = "{Bad Request}";
     res.status(404).send("Bad Request");
@@ -46,4 +46,4 @@ const refreshTokenRoute = async (req, res) => {
   }
 };
 
-export default withSessionRoute(refreshTokenRoute);
+export default withSessionRoute(handler);

@@ -3,7 +3,33 @@ const {
   PHASE_PRODUCTION_SERVER,
   PHASE_PRODUCTION_BUILD,
 } = require("next/constants");
-const { increment, getCount } = require("./src/services/siHubService");
+const {
+  setTokenInfo,
+  refreshToken,
+  getAccessToken,
+  getFolderContents,
+  getUserProjects,
+  resetTokenInfo,
+} = require("./src/services/siHubService");
+const {
+  getFileSyncStatus,
+  setFileSyncStatus,
+  getSyncStatus,
+  setSyncStatus,
+  setCurrentUser,
+  getCurrentUser,
+  getSynchronizationConfig,
+  setSynchronizationConfig,
+  setFtpConfig,
+  getFtpConfig,
+  reset,
+  resetFtpConfig,
+  resetSyncStatus,
+  resetCurrentUser,
+  resetSynchronizationConfig,
+  setLastSyncTime,
+  getLastSyncTime,
+} = require("./src/services/storageService");
 const lock = require("./src/services/lockService");
 
 module.exports = (phase, { defaultConfig }) => {
@@ -15,9 +41,30 @@ module.exports = (phase, { defaultConfig }) => {
     return {
       /* development only config options here */
       serverRuntimeConfig: {
-        increment,
-        getCount,
+        setTokenInfo,
+        refreshToken,
+        getAccessToken,
+        getFolderContents,
+        getUserProjects,
         lock,
+        getFileSyncStatus,
+        setFileSyncStatus,
+        getSyncStatus,
+        setSyncStatus,
+        setCurrentUser,
+        getCurrentUser,
+        getSynchronizationConfig,
+        setSynchronizationConfig,
+        setFtpConfig,
+        getFtpConfig,
+        reset,
+        resetFtpConfig,
+        resetSyncStatus,
+        resetCurrentUser,
+        resetSynchronizationConfig,
+        setLastSyncTime,
+        getLastSyncTime,
+        resetTokenInfo,
       },
     };
   }

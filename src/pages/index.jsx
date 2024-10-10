@@ -148,11 +148,11 @@ export default function ConfigurePage() {
     let URL = "/api/current-user-profile";
     let response = (await axios.get(URL)).data;
 
-    setCurrentUserPicture(response.userPicture || "");
-    setCurrentUserName(response.userName || undefined);
-    setCurrentUserEmail(response.userEmail || "");
+    setCurrentUserPicture(response.picture || "");
+    setCurrentUserName(response.name || undefined);
+    setCurrentUserEmail(response.email || "");
 
-    const currentUserEmail = response.userEmail || "null";
+    const currentUserEmail = response.email || "null";
 
     URL = "/api/user-profile?email=" + currentUserEmail;
     try {
@@ -170,9 +170,9 @@ export default function ConfigurePage() {
       }
     }
 
-    setUserPicture(response.userPicture);
-    setUserName(response.userName);
-    setUserEmail(response.userEmail);
+    setUserPicture(response.picture);
+    setUserName(response.name);
+    setUserEmail(response.email);
 
     URL = "/api/ftp-config";
     response = (await axios.get(URL)).data;
@@ -226,7 +226,13 @@ export default function ConfigurePage() {
         setIntervalWeekDay(response.weekday);
         setIntervalHour(response.hour);
         setSynchronizationStatus("Synchronization Confirmed");
-        setLastSync(response.lastSync);
+      }
+
+      URL = "/api/last-sync-time";
+      response = (await axios.get(URL)).data;
+
+      if (response !== undefined) {
+        setLastSync(response.lastTime);
       }
     }
 
@@ -620,16 +626,17 @@ export default function ConfigurePage() {
               })
             ).data;
 
-            if (item.isDirectory && accResponse !== "Error") {
+            if (accResponse === "Error") {
+              continue;
+            }
+
+            if (item.isDirectory) {
               // Push the directory onto the stack for later processing
               stack.push({
                 ftpPath: `${ftpPath}/${item.name}`,
                 accPath: `${accPath}/${item.name}`,
                 accFolderId: accResponse,
               });
-            }
-
-            if (accResponse === "Error") {
               continue;
             }
 

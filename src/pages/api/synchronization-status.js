@@ -1,8 +1,7 @@
+import { withSessionRoute } from "lib/withSession";
 import getConfig from "next/config";
 const { serverRuntimeConfig } = getConfig();
-const { lock } = serverRuntimeConfig;
-import { withSessionRoute } from "lib/withSession";
-const store = require("node-persist");
+const { getFileSyncStatus } = serverRuntimeConfig;
 
 const handler = async (req, res) => {
   const user = req.session.user;
@@ -10,12 +9,9 @@ const handler = async (req, res) => {
     res.send({});
     return;
   }
-  const release = await lock.acquire();
-  await store.init({ writeQueue: true });
 
-  const currentSyncFile = await store.getItem("currentSyncFile");
+  const currentSyncFile = await getFileSyncStatus();
 
-  release();
   res.send(currentSyncFile);
 };
 

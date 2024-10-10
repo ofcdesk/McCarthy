@@ -1,5 +1,7 @@
 import { withSessionRoute } from "lib/withSession";
-const store = require("node-persist");
+import getConfig from "next/config";
+const { serverRuntimeConfig } = getConfig();
+const { reset, resetTokenInfo } = serverRuntimeConfig;
 
 const handler = async (req, res) => {
   const user = req.session.user;
@@ -8,8 +10,8 @@ const handler = async (req, res) => {
     return;
   }
 
-  await store.init({ writeQueue: true });
-  await store.clear();
+  await reset();
+  await resetTokenInfo();
 
   res.send("Success");
 };

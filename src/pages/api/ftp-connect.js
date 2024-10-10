@@ -1,8 +1,8 @@
+import { withSessionRoute } from "lib/withSession";
 import getConfig from "next/config";
 const { serverRuntimeConfig } = getConfig();
-const { lock } = serverRuntimeConfig;
-import { withSessionRoute } from "lib/withSession";
-const store = require("node-persist");
+const { setFtpConfig } = serverRuntimeConfig;
+
 import { Client } from "basic-ftp";
 
 const handler = async (req, res) => {
@@ -45,10 +45,14 @@ const handler = async (req, res) => {
         res.status(406).send("The FTP server is empty");
         return;
       }
-      const release = await lock.acquire();
-      await store.init({ writeQueue: true });
-      await store.setItem("ftpConfig", ftpConfig);
-      release();
+
+      await setFtpConfig(
+        ftpConfig.host,
+        ftpConfig.user,
+        ftpConfig.password,
+        ftpConfig.secure,
+        ftpConfig.port
+      );
       res.send({
         message: "FTP connection successful and read permission granted",
       });

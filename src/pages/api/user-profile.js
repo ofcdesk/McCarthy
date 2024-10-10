@@ -1,24 +1,17 @@
+import { withSessionRoute } from "lib/withSession";
 import getConfig from "next/config";
 const { serverRuntimeConfig } = getConfig();
-const { lock } = serverRuntimeConfig;
+const { getCurrentUser } = serverRuntimeConfig;
 import axios from "axios";
-import { withSessionRoute } from "lib/withSession";
-const store = require("node-persist");
 
 const handler = async (req, res) => {
   const user = req.session.user;
   if (user === undefined) {
     res.send({});
   }
-  const release = await lock.acquire();
   if (req.query.email === user.email) {
-    await store.init({ writeQueue: true });
-    const userName = await store.get("currentUserName");
-    const userEmail = await store.get("currentUserEmail");
-    const userPicture = await store.get("currentUserPicture");
-
-    release();
-    res.send({ userName, userEmail, userPicture });
+    const currentUser = await getCurrentUser();
+    res.send(currentUser);
     return;
   }
 
@@ -36,17 +29,15 @@ const handler = async (req, res) => {
     ).data;
   } catch (err) {
     if (err.response.data === "Unauthorized") {
-      release();
       res.statusMessage = "Unauthorized";
       res.status(401).send("Unauthorized");
       return;
     }
   }
-  release();
   res.send({
-    userName: userProfile.given_name + " " + userProfile.family_name,
-    userEmail: userProfile.email,
-    userPicture: userProfile.picture,
+    name: userProfile.given_name + " " + userProfile.family_name,
+    email: userProfile.email,
+    picture: userProfile.picture,
   });
 };
 

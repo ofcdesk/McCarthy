@@ -1,8 +1,7 @@
+import { withSessionRoute } from "lib/withSession";
 import getConfig from "next/config";
 const { serverRuntimeConfig } = getConfig();
-const { lock } = serverRuntimeConfig;
-import { withSessionRoute } from "lib/withSession";
-const store = require("node-persist");
+const { setSyncStatus } = serverRuntimeConfig;
 
 const handler = async (req, res) => {
   const user = req.session.user;
@@ -11,14 +10,7 @@ const handler = async (req, res) => {
     return;
   }
 
-  const release = await lock.acquire();
-  await store.init({ writeQueue: true });
-
-  await store.setItem("synchronizationStatus", {
-    status: false,
-    lastDate: new Date().getTime(),
-  });
-  release();
+  await setSyncStatus(false, new Date().getTime());
 
   res.send("Success");
 };

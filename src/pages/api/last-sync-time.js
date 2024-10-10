@@ -1,16 +1,18 @@
 import { withSessionRoute } from "lib/withSession";
 import getConfig from "next/config";
 const { serverRuntimeConfig } = getConfig();
-const { getCurrentUser } = serverRuntimeConfig;
+const { getLastSyncTime } = serverRuntimeConfig;
 
 const handler = async (req, res) => {
   const user = req.session.user;
   if (user === undefined) {
     res.send({});
+    return;
   }
-  const currentUser = await getCurrentUser();
 
-  res.send(currentUser);
+  const lastSyncTime = await getLastSyncTime();
+
+  res.send(lastSyncTime);
 };
 
 export default withSessionRoute(handler);

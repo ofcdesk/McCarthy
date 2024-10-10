@@ -1,11 +1,10 @@
+import { withSessionRoute } from "lib/withSession";
 import getConfig from "next/config";
 const { serverRuntimeConfig } = getConfig();
-const { lock } = serverRuntimeConfig;
-const store = require("node-persist");
-import { withSessionRoute } from "lib/withSession";
+const { getFtpConfig } = serverRuntimeConfig;
 import { Client } from "basic-ftp";
 
-const refreshTokenRoute = async (req, res) => {
+const handler = async (req, res) => {
   if (
     req.method !== "POST" ||
     req.body.path === undefined ||
@@ -20,13 +19,10 @@ const refreshTokenRoute = async (req, res) => {
     res.status(401).send("Unauthorized");
     return;
   }
-  const release = await lock.acquire();
   const client = new Client();
   //client.ftp.verbose = true;
 
-  await store.init({ writeQueue: true });
-  const ftpConfig = await store.getItem("ftpConfig");
-  release();
+  const ftpConfig = await getFtpConfig();
 
   try {
     await client.access(ftpConfig);
@@ -71,4 +67,4 @@ const refreshTokenRoute = async (req, res) => {
   }
 };
 
-export default withSessionRoute(refreshTokenRoute);
+export default withSessionRoute(handler);

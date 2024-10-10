@@ -1,5 +1,7 @@
 import { withSessionRoute } from "lib/withSession";
-const store = require("node-persist");
+import getConfig from "next/config";
+const { serverRuntimeConfig } = getConfig();
+const { setTokenInfo, setCurrentUser } = serverRuntimeConfig;
 
 const handler = async (req, res) => {
   const user = req.session.user;
@@ -8,14 +10,17 @@ const handler = async (req, res) => {
     return;
   }
 
-  await store.init({ writeQueue: true });
+  await setTokenInfo(
+    req.query.access_token,
+    req.query.refresh_token,
+    req.query.expires_at
+  );
 
-  await store.set("access_token", req.query.access_token);
-  await store.set("refresh_token", req.query.refresh_token);
-  await store.set("expires_at", req.query.expires_at);
-  await store.set("currentUserName", req.query.userName);
-  await store.set("currentUserEmail", req.query.userEmail);
-  await store.set("currentUserPicture", req.query.userPicture);
+  await setCurrentUser(
+    req.query.userName,
+    req.query.userEmail,
+    req.query.userPicture
+  );
 
   res.send("Success");
 };
