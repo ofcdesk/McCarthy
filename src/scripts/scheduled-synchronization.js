@@ -205,19 +205,18 @@ process.stdin.on("data", async (data) => {
       });
 
       let actualStatus = await StorageService.getFileSyncStatus();
-      if (
-        actualStatus.status !== undefined &&
-        actualStatus.file !== undefined &&
-        actualStatus.error !== undefined &&
-        actualStatus.uploadCompleted !== undefined
+
+      while (actualStatus === null || actualStatus === undefined) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        actualStatus = await StorageService.getFileSyncStatus();
+      }
+
+      while (
+        actualStatus.uploadCompleted === false &&
+        actualStatus.error === false
       ) {
-        while (
-          actualStatus.uploadCompleted === false &&
-          actualStatus.error === false
-        ) {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          actualStatus = await StorageService.getFileSyncStatus();
-        }
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        actualStatus = await StorageService.getFileSyncStatus();
       }
     }
   }

@@ -11,7 +11,7 @@ const init = async () => {
   const syncConfig = await getSynchronizationConfig();
   if (syncConfig !== null && syncConfig !== undefined) {
     console.log(syncConfig);
-    setCron(syncConfig.interval, syncConfig.hour, syncConfig.weekDay);
+    //setCron(syncConfig.interval, syncConfig.hour, syncConfig.weekDay);
   }
 };
 
