@@ -212,6 +212,12 @@ process.stdin.on("data", async (data) => {
       }
 
       while (
+        actualStatus !== null &&
+        actualStatus !== undefined &&
+        actualStatus.uploadCompleted !== undefined &&
+        actualStatus.uploadCompleted !== null &&
+        actualStatus.error !== undefined &&
+        actualStatus.error !== null &&
         actualStatus.uploadCompleted === false &&
         actualStatus.error === false
       ) {
