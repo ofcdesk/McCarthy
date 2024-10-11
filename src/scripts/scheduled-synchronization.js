@@ -11,7 +11,13 @@ process.stdin.on("data", async (data) => {
   await StorageService.init();
   await SiHubService.init();
 
+  if ((await StorageService.getSyncStatus()).status === true) {
+    console.log("Sync already in progress");
+    return;
+  }
+
   console.log("Starting synchronization");
+  await StorageService.setSyncStatus(true, new Date().getTime());
   const client = new Client();
   const ftpConfig = await StorageService.getFtpConfig();
 

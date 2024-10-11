@@ -354,7 +354,7 @@ const uploadFileFromFTPToDataManagement = async (
 
 process.stdin.on("data", async (data) => {
   const _data = JSON.parse(data);
-  console.log("Received from parent: ", _data);
+  //console.log("Received from parent: ", _data);
   await StorageService.init();
   await SiHubService.init();
 
@@ -464,7 +464,7 @@ process.stdin.on("data", async (data) => {
         _data.ftpPath + "/" + _data.fileName
       );
 
-      const accessToken = await getAccessToken();
+      const accessToken = await SiHubService.getAccessToken();
       if (storageLocationId === null) {
         return;
       }

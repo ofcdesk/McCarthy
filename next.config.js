@@ -31,6 +31,7 @@ const {
   getLastSyncTime,
 } = require("./src/services/storageService");
 const lock = require("./src/services/lockService");
+const { setCron, stopCron } = require("./src/services/cronService");
 
 module.exports = (phase, { defaultConfig }) => {
   if (
@@ -65,6 +66,8 @@ module.exports = (phase, { defaultConfig }) => {
         setLastSyncTime,
         getLastSyncTime,
         resetTokenInfo,
+        setCron,
+        stopCron,
       },
     };
   }

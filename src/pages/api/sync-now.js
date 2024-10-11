@@ -28,8 +28,6 @@ const handler = async (req, res) => {
     return;
   }
 
-  await setSyncStatus(true, new Date().getTime());
-
   console.log(req.body.ftpPath);
 
   await setFileSyncStatus(req.body.ftpPath, "Starting sync", false, false);
