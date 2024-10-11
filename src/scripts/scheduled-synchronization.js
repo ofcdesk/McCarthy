@@ -11,7 +11,13 @@ process.stdin.on("data", async (data) => {
   await StorageService.init();
   await SiHubService.init();
 
-  if ((await StorageService.getSyncStatus()).status === true) {
+  const syncStatus = await StorageService.getSyncStatus();
+
+  if (
+    syncStatus !== null &&
+    syncStatus !== undefined &&
+    syncStatus?.status === true
+  ) {
     console.log("Sync already in progress");
     return;
   }
