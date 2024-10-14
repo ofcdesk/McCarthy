@@ -79,25 +79,40 @@ export default function ConfigurePage() {
     useState(undefined);
   const [selectedFtpFolder, setFtpSelectedFolder] = useState(undefined);
   const [selectedAccFolder, setSelectedAccFolder] = useState(undefined);
-  const [searchProjectByText, setSearchProjectByText] = useState("");
   const [accProjects, setAccProjects] = useState([]);
-  const [selectedAccProject, setSelectedAccProject] = useState(null);
-  const [synchronizationStatus, setSynchronizationStatus] = useState(
-    "You need to select an ACC project and a FTP folder to schedule the synchronization interval and hit the CONFIRM SCHEDULE button"
-    //"Schedule unavailable"
-  );
-  const [scheduleInterval, setScheduleInterval] = useState("DAILY");
-  const [intervalHour, setIntervalHour] = useState("12 AM");
-  const [intervalWeekDay, setIntervalWeekDay] = useState("Monday");
   const [lastSync, setLastSync] = useState(undefined);
-  const [synchronizationInProgress, setSynchronizationInProgress] =
-    useState(false);
-  const [
-    otherInstanceSynchronizationInProgress,
-    setOtherInstanceSynchronizationInProgress,
-  ] = useState(false);
   const [currentSyncFile, setCurrentSyncFile] = useState("Loading File...");
-  const [displaySyncErrorFeedback, setDisplaySyncErrorFeedback] = useState("");
+  const [searchProjectByAccFtpText, setSearchProjectByAccFtpText] =
+    useState("");
+  const [selectedAccFtpProject, setSelectedAccFtpProject] = useState(null);
+  const [accFtpSynchronizationStatus, setAccFtpSynchronizationStatus] =
+    useState(
+      "You need to select an ACC project and a FTP folder to schedule the synchronization interval and hit the CONFIRM SCHEDULE button"
+      //"Schedule unavailable"
+    );
+  const [scheduleAccFtpInterval, setScheduleAccFtpInterval] = useState("DAILY");
+  const [intervalAccFtpHour, setIntervalAccFtpHour] = useState("12 AM");
+  const [intervalAccFtpWeekDay, setIntervalAccFtpWeekDay] = useState("Monday");
+  const [synchronizationAccFtpInProgress, setSynchronizationAccFtpInProgress] =
+    useState(false);
+
+  const [searchProjectByAccProcoreText, setSearchProjectByAccProcoreText] =
+    useState("");
+  const [selectedAccProcoreProject, setSelectedAccProcoreProject] =
+    useState(null);
+  const [accProcoreSynchronizationStatus, setAccProcoreSynchronizationStatus] =
+    useState(
+      "You need to select an ACC project and a Procore project to schedule the synchronization interval and hit the CONFIRM SCHEDULE button"
+    );
+  const [scheduleAccProcoreInterval, setScheduleAccProcoreInterval] =
+    useState("DAILY");
+  const [intervalAccProcoreHour, setIntervalAccProcoreHour] = useState("12 AM");
+  const [intervalAccProcoreWeekDay, setIntervalAccProcoreWeekDay] =
+    useState("Monday");
+  const [
+    synchronizationAccProcoreInProgress,
+    setSynchronizationAccProcoreInProgress,
+  ] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -115,25 +130,34 @@ export default function ConfigurePage() {
           const differenceInMinutes =
             (currentTime - inProgress.lastDate) / (1000 * 60);
           if (differenceInMinutes < 60) {
-            setOtherInstanceSynchronizationInProgress(true);
-
+            setSynchronizationAccFtpInProgress(true);
             const currentSyncItem = (
               await axios.get("api/synchronization-status")
             ).data;
 
             if (currentSyncItem !== undefined) {
-              setSynchronizationInProgress(true);
               setCurrentSyncFile(
                 currentSyncItem.file + "\n" + currentSyncItem.status
               );
             }
           } else {
-            setOtherInstanceSynchronizationInProgress(false);
-            setSynchronizationInProgress(false);
+            const currentSyncItem = (
+              await axios.get("api/synchronization-status")
+            ).data;
+
+            if (currentSyncItem !== undefined) {
+              setCurrentSyncFile(
+                currentSyncItem.file + "\n" + currentSyncItem.status
+              );
+              if (currentSyncItem.error === true) {
+                setSynchronizationAccFtpInProgress(false);
+              }
+            } else {
+              setSynchronizationAccFtpInProgress(false);
+            }
           }
         } else {
-          setOtherInstanceSynchronizationInProgress(false);
-          setSynchronizationInProgress(false);
+          setSynchronizationAccFtpInProgress(false);
         }
       } catch (err) {
         console.log("Error getting synchronization status");
@@ -204,7 +228,7 @@ export default function ConfigurePage() {
       response = (await axios.get(URL)).data;
 
       if (response.hubId !== undefined) {
-        setSelectedAccProject({
+        setSelectedAccFtpProject({
           id: response.projectId,
           label: response.projectName,
           relationships: {
@@ -224,10 +248,10 @@ export default function ConfigurePage() {
           id: response.ftpFolderPath.id,
           label: response.ftpFolderPath.label,
         });
-        setScheduleInterval(response.interval);
-        setIntervalWeekDay(response.weekday);
-        setIntervalHour(response.hour);
-        setSynchronizationStatus("Synchronization Confirmed");
+        setScheduleAccFtpInterval(response.interval);
+        setIntervalAccFtpWeekDay(response.weekday);
+        setIntervalAccFtpHour(response.hour);
+        setAccFtpSynchronizationStatus("Synchronization Confirmed");
       }
 
       URL = "/api/last-sync-time";
@@ -267,7 +291,7 @@ export default function ConfigurePage() {
   };
 
   const handleFTPFolderClick = async () => {
-    if (!ftpConnected || otherInstanceSynchronizationInProgress === true) {
+    if (!ftpConnected) {
       return;
     }
     if (ftpFolders.length === 0) {
@@ -298,7 +322,7 @@ export default function ConfigurePage() {
   };
 
   const handleACCFolderClick = async () => {
-    if (selectedAccProject === null) {
+    if (selectedAccFtpProject === null) {
       return;
     }
     if (accFolders.length === 0) {
@@ -309,8 +333,8 @@ export default function ConfigurePage() {
       } catch (err) {}
       const response = (
         await axios.post("/api/acc-folders", {
-          hubId: selectedAccProject.relationships.hub.data.id,
-          projectId: selectedAccProject.id,
+          hubId: selectedAccFtpProject.relationships.hub.data.id,
+          projectId: selectedAccFtpProject.id,
           path: "Project Files",
           foldersOnly: true,
         })
@@ -420,9 +444,9 @@ export default function ConfigurePage() {
 
       setFtpSelectedFolder(undefined);
       setSelectedAccFolder(undefined);
-      setSearchProjectByText("");
-      setSelectedAccProject(null);
-      setSynchronizationStatus(
+      setSearchProjectByAccFtpText("");
+      setSelectedAccFtpProject(null);
+      setAccFtpSynchronizationStatus(
         "You need to select an ACC project and a FTP folder to schedule the synchronization interval and hit the CONFIRM SCHEDULE button"
       );
       setLastSync(undefined);
@@ -497,8 +521,8 @@ export default function ConfigurePage() {
       } else if (!selected.isFTP) {
         const response = (
           await axios.post("/api/acc-folders", {
-            hubId: selectedAccProject.relationships.hub.data.id,
-            projectId: selectedAccProject.id,
+            hubId: selectedAccFtpProject.relationships.hub.data.id,
+            projectId: selectedAccFtpProject.id,
             path: "Project Files/" + id,
             foldersOnly: true,
           })
@@ -526,7 +550,7 @@ export default function ConfigurePage() {
   };
 
   const accProjectSelected = (event, project) => {
-    setSelectedAccProject(project);
+    setSelectedAccFtpProject(project);
     console.log(project);
   };
 
@@ -534,21 +558,21 @@ export default function ConfigurePage() {
     const {
       target: { value },
     } = event;
-    setScheduleInterval(value);
+    setScheduleAccFtpInterval(value);
   };
 
   const handleIntervalHourChange = (event) => {
     const {
       target: { value },
     } = event;
-    setIntervalHour(value);
+    setIntervalAccFtpHour(value);
   };
 
   const handleIntervalWeekdayChange = (event) => {
     const {
       target: { value },
     } = event;
-    setIntervalWeekDay(value);
+    setIntervalAccFtpWeekDay(value);
   };
 
   const handleConfirmSynchronization = async () => {
@@ -556,9 +580,9 @@ export default function ConfigurePage() {
     setFetching(true);
     try {
       await axios.post("/api/confirm-synchronization", {
-        hubId: selectedAccProject.relationships.hub.data.id,
-        projectId: selectedAccProject.id,
-        projectName: selectedAccProject.label,
+        hubId: selectedAccFtpProject.relationships.hub.data.id,
+        projectId: selectedAccFtpProject.id,
+        projectName: selectedAccFtpProject.label,
         accFolderPath: {
           id: selectedAccFolder.id,
           label: selectedAccFolder.label,
@@ -568,15 +592,15 @@ export default function ConfigurePage() {
           id: selectedFtpFolder.id,
           label: selectedFtpFolder.label,
         },
-        interval: scheduleInterval,
-        weekDay: intervalWeekDay,
-        hour: intervalHour,
+        interval: scheduleAccFtpInterval,
+        weekDay: intervalAccFtpWeekDay,
+        hour: intervalAccFtpHour,
       });
-      setSynchronizationStatus("Synchronization Confirmed");
+      setAccFtpSynchronizationStatus("Synchronization Confirmed");
     } catch (err) {
       console.log("Error confirming synchronization");
       console.log(err);
-      setSynchronizationStatus("Error confirming synchronization");
+      setAccFtpSynchronizationStatus("Error confirming synchronization");
     }
     setFetching(false);
   };
@@ -586,13 +610,13 @@ export default function ConfigurePage() {
     setFetching(true);
     try {
       await axios.post("/api/cancel-synchronization");
-      setSynchronizationStatus(
+      setAccFtpSynchronizationStatus(
         "You need to select an ACC project and a FTP folder to schedule the synchronization interval and hit the CONFIRM SCHEDULE button"
       );
     } catch (err) {
       console.log("Error canceling synchronization");
       console.log(err);
-      setSynchronizationStatus("Error canceling synchronization");
+      setAccFtpSynchronizationStatus("Error canceling synchronization");
     }
     setFetching(false);
   };
@@ -617,8 +641,8 @@ export default function ConfigurePage() {
 
     try {
       await axios.post("/api/sync-now", {
-        hubId: selectedAccProject.relationships.hub.data.id,
-        projectId: selectedAccProject.id,
+        hubId: selectedAccFtpProject.relationships.hub.data.id,
+        projectId: selectedAccFtpProject.id,
         ftpPath: selectedFtpFolder.id,
         accPath: `Project Files/${selectedAccFolder.id}`,
         accFolderId: selectedAccFolder.accId,
@@ -630,7 +654,7 @@ export default function ConfigurePage() {
   };
 
   const handleCloseInProgressSynchronization = () => {
-    setSynchronizationInProgress(false);
+    setSynchronizationAccFtpInProgress(false);
   };
 
   const handleProjectSelectorClick = async () => {
@@ -691,36 +715,7 @@ export default function ConfigurePage() {
           {ftpErrorText}
         </Alert>
       </Snackbar>
-      <Dialog open={synchronizationInProgress}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            flexDirection: "column",
-            minWidth: 500,
-            padding: 4,
-          }}
-        >
-          <Image
-            src={
-              currentSyncFile === "Synchronization Finished"
-                ? "/assets/images/syncDone.png"
-                : "/assets/images/uploading.gif"
-            }
-            width={300}
-            height={185}
-            style={{ objectFit: "contain" }}
-          />
-          <Box m={3}>{currentSyncFile}</Box>
-          <Button
-            onClick={handleCloseInProgressSynchronization}
-            disabled={currentSyncFile !== "Synchronization Finished"}
-          >
-            CONFIRM
-          </Button>
-        </Box>
-      </Dialog>
+
       <Grid
         spacing={4}
         container
@@ -829,419 +824,747 @@ export default function ConfigurePage() {
             </Card>
           </Grid>
         )}
-        {currentUserName !== undefined && (
-          <Grid item xs={12}>
-            <Card>
-              <CardHeader
-                title={"Configure FTP Access"}
-                subheader={"Set up FTP access to synchronize with ACC"}
-              />
-              <CardContent>
-                <Grid
-                  spacing={2}
-                  container
-                  sx={{ display: "flex", justifyContent: "center" }}
-                >
-                  <Grid item sm={4} xs={12}>
-                    <TextField
-                      fullWidth
-                      color="primary"
-                      size="medium"
-                      name="ftp_host"
-                      onChange={(event) => {
-                        setFtpHost(event.target.value);
-                      }}
-                      value={ftpHost}
-                      label="FTP Host"
-                      disabled={ftpConnected}
-                    />
-                  </Grid>
-                  <Grid item sm={3} xs={12}>
-                    <TextField
-                      fullWidth
-                      color="primary"
-                      size="medium"
-                      name="ftp_username"
-                      label="Username"
-                      onChange={(event) => {
-                        setFtpUsername(event.target.value);
-                      }}
-                      value={ftpUsername}
-                      disabled={ftpConnected}
-                    />
-                  </Grid>
-                  <Grid item sm={3} xs={12}>
-                    <TextField
-                      fullWidth
-                      color="primary"
-                      size="medium"
-                      name="ftp_password"
-                      label="Password"
-                      onChange={(event) => {
-                        setFtpPassword(event.target.value);
-                      }}
-                      value={ftpPassword}
-                      disabled={ftpConnected}
-                      type={"password"}
-                    />
-                  </Grid>
-                  <Grid
-                    item
-                    sm={2}
-                    xs={12}
-                    sx={{ display: "flex", alignItems: "center" }}
-                  >
-                    <Button
-                      fullWidth
-                      disabled={otherInstanceSynchronizationInProgress === true}
-                      onClick={
-                        ftpConnected ? handleFTPDisconnect : handleFTPConnect
-                      }
-                    >
-                      {ftpConnected ? "DISCONNECT" : "CONNECT"}
-                    </Button>
-                  </Grid>
-                  <Grid item xs={12}>
-                    {displayFTPErrorFeedback ? (
-                      <Alert
-                        onClose={handleCloseErrorSnackBar}
-                        severity="error"
-                        sx={{ width: "100%" }}
-                      >
-                        <AlertTitle>Error</AlertTitle>
-                        {ftpErrorText}
-                      </Alert>
-                    ) : null}
-                    {ftpConnected ? (
-                      <Alert
-                        //severity="error"
-                        sx={{ width: "100%" }}
-                      >
-                        <AlertTitle>FTP Status</AlertTitle>
-                        FTP Connected
-                      </Alert>
-                    ) : null}
-                  </Grid>
-                </Grid>
-              </CardContent>
-            </Card>
-          </Grid>
+        {synchronizationAccFtpInProgress === true && (
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              flexDirection: "column",
+              width: "100%",
+              padding: 4,
+            }}
+          >
+            <H3 m={3}>Synchronization in Progress</H3>
+            <Image
+              src={
+                currentSyncFile === "Synchronization Finished"
+                  ? "/assets/images/syncDone.png"
+                  : "/assets/images/uploading.gif"
+              }
+              width={800}
+              height={493}
+              style={{ objectFit: "contain" }}
+            />
+            <Box m={3}>{currentSyncFile}</Box>
+          </Box>
         )}
-        {currentUserName !== undefined && ftpConnected && (
-          <Grid item xs={12}>
-            <Card>
-              {otherInstanceSynchronizationInProgress === true && (
-                <Grid item xs={12}>
-                  <Alert severity={"info"}>
-                    <AlertTitle>Synchronization In Progress</AlertTitle>
-                    There is a synchronization in progress in another instance,
-                    wait for it to finish to start a new one
-                  </Alert>
-                </Grid>
-              )}
-              <CardHeader
-                title={"Configure Project Sync"}
-                subheader={"Configure synchronization between ACC and FTP"}
-                action={
-                  <Button
-                    disabled={
-                      selectedAccFolder === undefined ||
-                      selectedFtpFolder === undefined ||
-                      otherInstanceSynchronizationInProgress === true
-                    }
-                    onClick={handleSyncNowPress}
+        {synchronizationAccFtpInProgress === false &&
+          currentUserName !== undefined && (
+            <Grid item xs={12}>
+              <Card>
+                <CardHeader
+                  title={"Configure FTP Access"}
+                  subheader={"Set up FTP access to synchronize with ACC"}
+                />
+                <CardContent>
+                  <Grid
+                    spacing={2}
+                    container
+                    sx={{ display: "flex", justifyContent: "center" }}
                   >
-                    SYNC NOW
-                  </Button>
-                }
-              />
-              <CardContent
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                }}
-              >
-                <Grid
-                  spacing={2}
-                  container
-                  sx={{ display: "flex", justifyContent: "center" }}
-                >
-                  <Grid item sm={4} xs={12}>
-                    <Autocomplete
-                      fullWidth
-                      color="primary"
-                      size="medium"
-                      variant="outlined"
-                      disablePortal
-                      disabled={
-                        synchronizationStatus === "Synchronization Confirmed" ||
-                        otherInstanceSynchronizationInProgress === true
-                      }
-                      value={
-                        selectedAccProject !== null
-                          ? selectedAccProject.label
-                          : ""
-                      }
-                      options={
-                        searchProjectByText.length === 0
-                          ? accProjects
-                          : accProjects.filter((project) =>
-                              project.label
-                                .toLowerCase()
-                                .includes(searchProjectByText.toLowerCase())
-                            )
-                      }
-                      onChange={accProjectSelected}
-                      inputValue={searchProjectByText}
-                      onInputChange={(event, newInputValue) => {
-                        setSearchProjectByText(newInputValue);
-                      }}
-                      onOpen={handleProjectSelectorClick}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          fullWidth
-                          color="primary"
-                          size="medium"
-                          variant="outlined"
-                          label="ACC Project"
-                          placeholder="Type to search"
-                        />
-                      )}
-                    />
-                  </Grid>
-                  <Grid item sm={4} xs={12}>
-                    <FormControl fullWidth>
-                      <InputLabel id="scopes-multiple-checkbox-label">
-                        ACC Folder
-                      </InputLabel>
-                      <Select
+                    <Grid item sm={4} xs={12}>
+                      <TextField
                         fullWidth
-                        labelId="scopes-multiple-checkbox-label"
-                        id="scopes-multiple-checkbox"
                         color="primary"
                         size="medium"
-                        label="ACC Folder"
-                        onClick={handleACCFolderClick}
-                        open={false}
-                        disabled={
-                          selectedAccProject === null ||
-                          synchronizationStatus ===
-                            "Synchronization Confirmed" ||
-                          otherInstanceSynchronizationInProgress === true
-                        }
-                        value={
-                          selectedAccFolder !== undefined
-                            ? selectedAccFolder.label
-                            : ""
-                        }
-                        renderValue={(selected) => selected}
-                        input={<OutlinedInput label="ACC Folder" />}
-                      ></Select>
-                    </FormControl>
-                  </Grid>
-                  <Grid item sm={4} xs={12}>
-                    <FormControl fullWidth>
-                      <InputLabel id="scopes-multiple-checkbox-label">
-                        FTP Folder
-                      </InputLabel>
-                      <Select
+                        name="ftp_host"
+                        onChange={(event) => {
+                          setFtpHost(event.target.value);
+                        }}
+                        value={ftpHost}
+                        label="FTP Host"
+                        disabled={ftpConnected}
+                      />
+                    </Grid>
+                    <Grid item sm={3} xs={12}>
+                      <TextField
                         fullWidth
-                        labelId="scopes-multiple-checkbox-label"
-                        id="scopes-multiple-checkbox"
                         color="primary"
                         size="medium"
-                        label="FTP Folder"
-                        onClick={handleFTPFolderClick}
-                        open={false}
-                        disabled={
-                          !ftpConnected ||
-                          synchronizationStatus ===
-                            "Synchronization Confirmed" ||
-                          otherInstanceSynchronizationInProgress === true
-                        }
-                        value={
-                          selectedFtpFolder !== undefined
-                            ? selectedFtpFolder.label
-                            : ""
-                        }
-                        renderValue={(selected) => selected}
-                        input={<OutlinedInput label="FTP Folder" />}
-                      ></Select>
-                    </FormControl>
-                  </Grid>
-                </Grid>
-              </CardContent>
-              <Box
-                sx={{ marginInline: 2, borderTop: 2, borderColor: "#CCC" }}
-              />
-              <CardHeader
-                title={"Schedule Interval"}
-                subheader={"Set up the interval for synchronization"}
-              />
-              <CardContent>
-                <Grid
-                  spacing={2}
-                  container
-                  sx={{ display: "flex", justifyContent: "center" }}
-                >
-                  <Grid item xs={scheduleInterval === "WEEKLY" ? 4 : 6}>
-                    <FormControl fullWidth>
-                      <InputLabel id="select-schedule-interval-label">
-                        Interval
-                      </InputLabel>
-                      <Select
-                        labelId="select-schedule-interval-label"
-                        id="select-schedule-interval"
+                        name="ftp_username"
+                        label="Username"
+                        onChange={(event) => {
+                          setFtpUsername(event.target.value);
+                        }}
+                        value={ftpUsername}
+                        disabled={ftpConnected}
+                      />
+                    </Grid>
+                    <Grid item sm={3} xs={12}>
+                      <TextField
+                        fullWidth
                         color="primary"
                         size="medium"
+                        name="ftp_password"
+                        label="Password"
+                        onChange={(event) => {
+                          setFtpPassword(event.target.value);
+                        }}
+                        value={ftpPassword}
+                        disabled={ftpConnected}
+                        type={"password"}
+                      />
+                    </Grid>
+                    <Grid
+                      item
+                      sm={2}
+                      xs={12}
+                      sx={{ display: "flex", alignItems: "center" }}
+                    >
+                      <Button
                         fullWidth
-                        input={<OutlinedInput label="Interval" />}
-                        value={scheduleInterval}
-                        onChange={handleScheduleIntervalChange}
-                        disabled={
-                          synchronizationStatus ===
-                            "Synchronization Confirmed" ||
-                          otherInstanceSynchronizationInProgress === true
+                        disabled={synchronizationAccFtpInProgress === true}
+                        onClick={
+                          ftpConnected ? handleFTPDisconnect : handleFTPConnect
                         }
                       >
-                        <MenuItem value={"DAILY"} key={0}>
-                          DAILY
-                        </MenuItem>
-                        <MenuItem value={"WEEKLY"} key={1}>
-                          WEEKLY
-                        </MenuItem>
-                      </Select>
-                    </FormControl>
+                        {ftpConnected ? "DISCONNECT" : "CONNECT"}
+                      </Button>
+                    </Grid>
+                    <Grid item xs={12}>
+                      {displayFTPErrorFeedback ? (
+                        <Alert
+                          onClose={handleCloseErrorSnackBar}
+                          severity="error"
+                          sx={{ width: "100%" }}
+                        >
+                          <AlertTitle>Error</AlertTitle>
+                          {ftpErrorText}
+                        </Alert>
+                      ) : null}
+                      {ftpConnected ? (
+                        <Alert
+                          //severity="error"
+                          sx={{ width: "100%" }}
+                        >
+                          <AlertTitle>FTP Status</AlertTitle>
+                          FTP Connected
+                        </Alert>
+                      ) : null}
+                    </Grid>
                   </Grid>
-                  {scheduleInterval === "WEEKLY" && (
-                    <Grid item xs={4}>
+                </CardContent>
+              </Card>
+            </Grid>
+          )}
+        {synchronizationAccFtpInProgress === false &&
+          currentUserName !== undefined &&
+          ftpConnected && (
+            <Grid item xs={12}>
+              <Card>
+                {synchronizationAccFtpInProgress === true && (
+                  <Grid item xs={12}>
+                    <Alert severity={"info"}>
+                      <AlertTitle>Synchronization In Progress</AlertTitle>
+                      There is a synchronization in progress in another
+                      instance, wait for it to finish to start a new one
+                    </Alert>
+                  </Grid>
+                )}
+                <CardHeader
+                  title={"Configure FTP Sync"}
+                  subheader={"Configure synchronization between ACC and FTP"}
+                  action={
+                    <Button
+                      disabled={
+                        selectedAccFolder === undefined ||
+                        selectedFtpFolder === undefined ||
+                        synchronizationAccFtpInProgress === true
+                      }
+                      onClick={handleSyncNowPress}
+                    >
+                      SYNC NOW
+                    </Button>
+                  }
+                />
+                <CardContent
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                  }}
+                >
+                  <Grid
+                    spacing={2}
+                    container
+                    sx={{ display: "flex", justifyContent: "center" }}
+                  >
+                    <Grid item sm={4} xs={12}>
+                      <Autocomplete
+                        fullWidth
+                        color="primary"
+                        size="medium"
+                        variant="outlined"
+                        disablePortal
+                        disabled={
+                          accFtpSynchronizationStatus ===
+                            "Synchronization Confirmed" ||
+                          synchronizationAccFtpInProgress === true
+                        }
+                        value={
+                          selectedAccFtpProject !== null
+                            ? selectedAccFtpProject.label
+                            : ""
+                        }
+                        options={
+                          searchProjectByAccFtpText.length === 0
+                            ? accProjects
+                            : accProjects.filter((project) =>
+                                project.label
+                                  .toLowerCase()
+                                  .includes(
+                                    searchProjectByAccFtpText.toLowerCase()
+                                  )
+                              )
+                        }
+                        onChange={accProjectSelected}
+                        inputValue={searchProjectByAccFtpText}
+                        onInputChange={(event, newInputValue) => {
+                          setSearchProjectByAccFtpText(newInputValue);
+                        }}
+                        onOpen={handleProjectSelectorClick}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            fullWidth
+                            color="primary"
+                            size="medium"
+                            variant="outlined"
+                            label="ACC Project"
+                            placeholder="Type to search"
+                          />
+                        )}
+                      />
+                    </Grid>
+                    <Grid item sm={4} xs={12}>
                       <FormControl fullWidth>
-                        <InputLabel id="select-schedule-weekday-label">
-                          Week Day
+                        <InputLabel id="scopes-multiple-checkbox-label">
+                          ACC Folder
                         </InputLabel>
                         <Select
-                          labelId="select-schedule-weekday-label"
-                          id="select-schedule-weekday"
+                          fullWidth
+                          labelId="scopes-multiple-checkbox-label"
+                          id="scopes-multiple-checkbox"
+                          color="primary"
+                          size="medium"
+                          label="ACC Folder"
+                          onClick={handleACCFolderClick}
+                          open={false}
+                          disabled={
+                            selectedAccFtpProject === null ||
+                            accFtpSynchronizationStatus ===
+                              "Synchronization Confirmed" ||
+                            synchronizationAccFtpInProgress === true
+                          }
+                          value={
+                            selectedAccFolder !== undefined
+                              ? selectedAccFolder.label
+                              : ""
+                          }
+                          renderValue={(selected) => selected}
+                          input={<OutlinedInput label="ACC Folder" />}
+                        ></Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item sm={4} xs={12}>
+                      <FormControl fullWidth>
+                        <InputLabel id="scopes-multiple-checkbox-label">
+                          FTP Folder
+                        </InputLabel>
+                        <Select
+                          fullWidth
+                          labelId="scopes-multiple-checkbox-label"
+                          id="scopes-multiple-checkbox"
+                          color="primary"
+                          size="medium"
+                          label="FTP Folder"
+                          onClick={handleFTPFolderClick}
+                          open={false}
+                          disabled={
+                            !ftpConnected ||
+                            accFtpSynchronizationStatus ===
+                              "Synchronization Confirmed" ||
+                            synchronizationAccFtpInProgress === true
+                          }
+                          value={
+                            selectedFtpFolder !== undefined
+                              ? selectedFtpFolder.label
+                              : ""
+                          }
+                          renderValue={(selected) => selected}
+                          input={<OutlinedInput label="FTP Folder" />}
+                        ></Select>
+                      </FormControl>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+                <Box
+                  sx={{ marginInline: 2, borderTop: 2, borderColor: "#CCC" }}
+                />
+                <CardHeader
+                  title={"Schedule Interval"}
+                  subheader={"Set up the interval for synchronization"}
+                />
+                <CardContent>
+                  <Grid
+                    spacing={2}
+                    container
+                    sx={{ display: "flex", justifyContent: "center" }}
+                  >
+                    <Grid item xs={scheduleAccFtpInterval === "WEEKLY" ? 4 : 6}>
+                      <FormControl fullWidth>
+                        <InputLabel id="select-schedule-interval-label">
+                          Interval
+                        </InputLabel>
+                        <Select
+                          labelId="select-schedule-interval-label"
+                          id="select-schedule-interval"
                           color="primary"
                           size="medium"
                           fullWidth
-                          input={<OutlinedInput label="Week Day" />}
-                          value={intervalWeekDay}
-                          onChange={handleIntervalWeekdayChange}
+                          input={<OutlinedInput label="Interval" />}
+                          value={scheduleAccFtpInterval}
+                          onChange={handleScheduleIntervalChange}
                           disabled={
-                            synchronizationStatus ===
+                            accFtpSynchronizationStatus ===
                               "Synchronization Confirmed" ||
-                            otherInstanceSynchronizationInProgress === true
+                            synchronizationAccFtpInProgress === true
                           }
                         >
-                          <MenuItem value={"Sunday"} key={0}>
-                            Sunday
+                          <MenuItem value={"DAILY"} key={0}>
+                            DAILY
                           </MenuItem>
-                          <MenuItem value={"Monday"} key={1}>
-                            Monday
-                          </MenuItem>
-                          <MenuItem value={"Tuesday"} key={2}>
-                            Tuesday
-                          </MenuItem>
-                          <MenuItem value={"Wednesday"} key={3}>
-                            Wednesday
-                          </MenuItem>
-                          <MenuItem value={"Thursday"} key={4}>
-                            Thursday
-                          </MenuItem>
-                          <MenuItem value={"Friday"} key={5}>
-                            Friday
-                          </MenuItem>
-                          <MenuItem value={"Saturday"} key={6}>
-                            Saturday
+                          <MenuItem value={"WEEKLY"} key={1}>
+                            WEEKLY
                           </MenuItem>
                         </Select>
                       </FormControl>
                     </Grid>
-                  )}
-                  <Grid item xs={scheduleInterval === "WEEKLY" ? 4 : 6}>
-                    <FormControl fullWidth>
-                      <InputLabel id="select-schedule-hour-label">
-                        Hour
-                      </InputLabel>
-                      <Select
-                        labelId="select-schedule-hour-label"
-                        id="select-schedule-hour"
-                        color="primary"
-                        size="medium"
-                        fullWidth
-                        input={<OutlinedInput label="Hour" />}
-                        value={intervalHour}
-                        onChange={handleIntervalHourChange}
-                        disabled={
-                          synchronizationStatus ===
-                            "Synchronization Confirmed" ||
-                          otherInstanceSynchronizationInProgress === true
-                        }
-                      >
-                        {hours.map((hour, index) => (
-                          <MenuItem key={index} value={hour}>
-                            {hour}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  <Grid
-                    item
-                    xs={12}
-                    sm={
-                      synchronizationStatus === "Synchronization Confirmed"
-                        ? 6
-                        : 12
-                    }
-                  >
-                    <Alert
-                      severity={
-                        synchronizationStatus ===
-                          "You need to select an ACC project and a FTP folder to schedule the synchronization interval and hit the CONFIRM SCHEDULE button" ||
-                        synchronizationStatus === "Schedule unavailable"
-                          ? "warning"
-                          : "success"
+                    {scheduleAccFtpInterval === "WEEKLY" && (
+                      <Grid item xs={4}>
+                        <FormControl fullWidth>
+                          <InputLabel id="select-schedule-weekday-label">
+                            Week Day
+                          </InputLabel>
+                          <Select
+                            labelId="select-schedule-weekday-label"
+                            id="select-schedule-weekday"
+                            color="primary"
+                            size="medium"
+                            fullWidth
+                            input={<OutlinedInput label="Week Day" />}
+                            value={intervalAccFtpWeekDay}
+                            onChange={handleIntervalWeekdayChange}
+                            disabled={
+                              accFtpSynchronizationStatus ===
+                                "Synchronization Confirmed" ||
+                              synchronizationAccFtpInProgress === true
+                            }
+                          >
+                            <MenuItem value={"Sunday"} key={0}>
+                              Sunday
+                            </MenuItem>
+                            <MenuItem value={"Monday"} key={1}>
+                              Monday
+                            </MenuItem>
+                            <MenuItem value={"Tuesday"} key={2}>
+                              Tuesday
+                            </MenuItem>
+                            <MenuItem value={"Wednesday"} key={3}>
+                              Wednesday
+                            </MenuItem>
+                            <MenuItem value={"Thursday"} key={4}>
+                              Thursday
+                            </MenuItem>
+                            <MenuItem value={"Friday"} key={5}>
+                              Friday
+                            </MenuItem>
+                            <MenuItem value={"Saturday"} key={6}>
+                              Saturday
+                            </MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                    )}
+                    <Grid item xs={scheduleAccFtpInterval === "WEEKLY" ? 4 : 6}>
+                      <FormControl fullWidth>
+                        <InputLabel id="select-schedule-hour-label">
+                          Hour
+                        </InputLabel>
+                        <Select
+                          labelId="select-schedule-hour-label"
+                          id="select-schedule-hour"
+                          color="primary"
+                          size="medium"
+                          fullWidth
+                          input={<OutlinedInput label="Hour" />}
+                          value={intervalAccFtpHour}
+                          onChange={handleIntervalHourChange}
+                          disabled={
+                            accFtpSynchronizationStatus ===
+                              "Synchronization Confirmed" ||
+                            synchronizationAccFtpInProgress === true
+                          }
+                        >
+                          {hours.map((hour, index) => (
+                            <MenuItem key={index} value={hour}>
+                              {hour}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid
+                      item
+                      xs={12}
+                      sm={
+                        accFtpSynchronizationStatus ===
+                        "Synchronization Confirmed"
+                          ? 6
+                          : 12
                       }
                     >
-                      <AlertTitle>Schedule Status</AlertTitle>
-                      {synchronizationStatus}
-                    </Alert>
-                  </Grid>
-                  {synchronizationStatus === "Synchronization Confirmed" && (
-                    <Grid item xs={12} sm={6}>
-                      <Alert severity={"info"}>
-                        <AlertTitle>Last sync time</AlertTitle>
-                        {lastSync === undefined ? "Never" : lastSync}
+                      <Alert
+                        severity={
+                          accFtpSynchronizationStatus ===
+                            "You need to select an ACC project and a FTP folder to schedule the synchronization interval and hit the CONFIRM SCHEDULE button" ||
+                          accFtpSynchronizationStatus === "Schedule unavailable"
+                            ? "warning"
+                            : "success"
+                        }
+                      >
+                        <AlertTitle>Schedule Status</AlertTitle>
+                        {accFtpSynchronizationStatus}
                       </Alert>
                     </Grid>
-                  )}
-                </Grid>
-              </CardContent>
-              <CardActions sx={{ display: "flex", justifyContent: "flex-end" }}>
-                <Button
-                  disabled={
-                    selectedAccFolder === undefined ||
-                    selectedFtpFolder === undefined ||
-                    otherInstanceSynchronizationInProgress === true
-                  }
-                  onClick={
-                    synchronizationStatus === "Synchronization Confirmed"
-                      ? handleCancelSynchronization
-                      : handleConfirmSynchronization
-                  }
+                    {accFtpSynchronizationStatus ===
+                      "Synchronization Confirmed" && (
+                      <Grid item xs={12} sm={6}>
+                        <Alert severity={"info"}>
+                          <AlertTitle>Last sync time</AlertTitle>
+                          {lastSync === undefined ? "Never" : lastSync}
+                        </Alert>
+                      </Grid>
+                    )}
+                  </Grid>
+                </CardContent>
+                <CardActions
+                  sx={{ display: "flex", justifyContent: "flex-end" }}
                 >
-                  {synchronizationStatus === "Synchronization Confirmed"
-                    ? "CANCEL SCHEDULE"
-                    : "CONFIRM SCHEDULE"}
-                </Button>
-              </CardActions>
-            </Card>
-          </Grid>
-        )}
+                  <Button
+                    disabled={
+                      selectedAccFolder === undefined ||
+                      selectedFtpFolder === undefined ||
+                      synchronizationAccFtpInProgress === true
+                    }
+                    onClick={
+                      accFtpSynchronizationStatus ===
+                      "Synchronization Confirmed"
+                        ? handleCancelSynchronization
+                        : handleConfirmSynchronization
+                    }
+                  >
+                    {accFtpSynchronizationStatus === "Synchronization Confirmed"
+                      ? "CANCEL SCHEDULE"
+                      : "CONFIRM SCHEDULE"}
+                  </Button>
+                </CardActions>
+              </Card>
+            </Grid>
+          )}
+
+        {false &&
+          synchronizationAccProcoreInProgress === false &&
+          currentUserName !== undefined && (
+            <Grid item xs={12}>
+              <Card>
+                <CardHeader
+                  title={"Configure Procore Sync"}
+                  subheader={
+                    "Configure synchronization between ACC and Procore"
+                  }
+                />
+                <CardContent
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                  }}
+                >
+                  <Grid
+                    spacing={2}
+                    container
+                    sx={{ display: "flex", justifyContent: "center" }}
+                  >
+                    <Grid item sm={6} xs={12}>
+                      <Autocomplete
+                        fullWidth
+                        color="primary"
+                        size="medium"
+                        variant="outlined"
+                        disablePortal
+                        disabled={
+                          accFtpSynchronizationStatus ===
+                          "Synchronization Confirmed"
+                        }
+                        value={
+                          selectedAccFtpProject !== null
+                            ? selectedAccFtpProject.label
+                            : ""
+                        }
+                        options={
+                          searchProjectByAccFtpText.length === 0
+                            ? accProjects
+                            : accProjects.filter((project) =>
+                                project.label
+                                  .toLowerCase()
+                                  .includes(
+                                    searchProjectByAccFtpText.toLowerCase()
+                                  )
+                              )
+                        }
+                        onChange={accProjectSelected}
+                        inputValue={searchProjectByAccFtpText}
+                        onInputChange={(event, newInputValue) => {
+                          setSearchProjectByAccFtpText(newInputValue);
+                        }}
+                        onOpen={handleProjectSelectorClick}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            fullWidth
+                            color="primary"
+                            size="medium"
+                            variant="outlined"
+                            label="ACC Project"
+                            placeholder="Type to search"
+                          />
+                        )}
+                      />
+                    </Grid>
+                    <Grid item sm={6} xs={12}>
+                      <Autocomplete
+                        fullWidth
+                        color="primary"
+                        size="medium"
+                        variant="outlined"
+                        disablePortal
+                        disabled={
+                          accFtpSynchronizationStatus ===
+                          "Synchronization Confirmed"
+                        }
+                        value={
+                          selectedAccFtpProject !== null
+                            ? selectedAccFtpProject.label
+                            : ""
+                        }
+                        options={
+                          searchProjectByAccFtpText.length === 0
+                            ? accProjects
+                            : accProjects.filter((project) =>
+                                project.label
+                                  .toLowerCase()
+                                  .includes(
+                                    searchProjectByAccFtpText.toLowerCase()
+                                  )
+                              )
+                        }
+                        onChange={accProjectSelected}
+                        inputValue={searchProjectByAccFtpText}
+                        onInputChange={(event, newInputValue) => {
+                          setSearchProjectByAccFtpText(newInputValue);
+                        }}
+                        onOpen={handleProjectSelectorClick}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            fullWidth
+                            color="primary"
+                            size="medium"
+                            variant="outlined"
+                            label="Procore Project"
+                            placeholder="Type to search"
+                          />
+                        )}
+                      />
+                    </Grid>
+                  </Grid>
+                </CardContent>
+                <Box
+                  sx={{ marginInline: 2, borderTop: 2, borderColor: "#CCC" }}
+                />
+                <CardHeader
+                  title={"Schedule Interval"}
+                  subheader={"Set up the interval for synchronization"}
+                />
+                <CardContent>
+                  <Grid
+                    spacing={2}
+                    container
+                    sx={{ display: "flex", justifyContent: "center" }}
+                  >
+                    <Grid item xs={scheduleAccFtpInterval === "WEEKLY" ? 4 : 6}>
+                      <FormControl fullWidth>
+                        <InputLabel id="select-schedule-interval-label">
+                          Interval
+                        </InputLabel>
+                        <Select
+                          labelId="select-schedule-interval-label"
+                          id="select-schedule-interval"
+                          color="primary"
+                          size="medium"
+                          fullWidth
+                          input={<OutlinedInput label="Interval" />}
+                          value={scheduleAccFtpInterval}
+                          onChange={handleScheduleIntervalChange}
+                          disabled={
+                            accFtpSynchronizationStatus ===
+                            "Synchronization Confirmed"
+                          }
+                        >
+                          <MenuItem value={"EVERY_X_HOUR"} key={0}>
+                            EVERY X HOURS
+                          </MenuItem>
+                          <MenuItem value={"DAILY"} key={0}>
+                            DAILY
+                          </MenuItem>
+                          <MenuItem value={"WEEKLY"} key={1}>
+                            WEEKLY
+                          </MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    {scheduleAccFtpInterval === "WEEKLY" && (
+                      <Grid item xs={4}>
+                        <FormControl fullWidth>
+                          <InputLabel id="select-schedule-weekday-label">
+                            Week Day
+                          </InputLabel>
+                          <Select
+                            labelId="select-schedule-weekday-label"
+                            id="select-schedule-weekday"
+                            color="primary"
+                            size="medium"
+                            fullWidth
+                            input={<OutlinedInput label="Week Day" />}
+                            value={intervalAccFtpWeekDay}
+                            onChange={handleIntervalWeekdayChange}
+                            disabled={
+                              accFtpSynchronizationStatus ===
+                              "Synchronization Confirmed"
+                            }
+                          >
+                            <MenuItem value={"Sunday"} key={0}>
+                              Sunday
+                            </MenuItem>
+                            <MenuItem value={"Monday"} key={1}>
+                              Monday
+                            </MenuItem>
+                            <MenuItem value={"Tuesday"} key={2}>
+                              Tuesday
+                            </MenuItem>
+                            <MenuItem value={"Wednesday"} key={3}>
+                              Wednesday
+                            </MenuItem>
+                            <MenuItem value={"Thursday"} key={4}>
+                              Thursday
+                            </MenuItem>
+                            <MenuItem value={"Friday"} key={5}>
+                              Friday
+                            </MenuItem>
+                            <MenuItem value={"Saturday"} key={6}>
+                              Saturday
+                            </MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                    )}
+                    <Grid item xs={scheduleAccFtpInterval === "WEEKLY" ? 4 : 6}>
+                      <FormControl fullWidth>
+                        <InputLabel id="select-schedule-hour-label">
+                          Hour
+                        </InputLabel>
+                        <Select
+                          labelId="select-schedule-hour-label"
+                          id="select-schedule-hour"
+                          color="primary"
+                          size="medium"
+                          fullWidth
+                          input={<OutlinedInput label="Hour" />}
+                          value={intervalAccFtpHour}
+                          onChange={handleIntervalHourChange}
+                          disabled={
+                            accFtpSynchronizationStatus ===
+                            "Synchronization Confirmed"
+                          }
+                        >
+                          {hours.map((hour, index) => (
+                            <MenuItem key={index} value={hour}>
+                              {hour}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid
+                      item
+                      xs={12}
+                      sm={
+                        accFtpSynchronizationStatus ===
+                        "Synchronization Confirmed"
+                          ? 6
+                          : 12
+                      }
+                    >
+                      <Alert
+                        severity={
+                          accFtpSynchronizationStatus ===
+                            "You need to select an ACC project and a FTP folder to schedule the synchronization interval and hit the CONFIRM SCHEDULE button" ||
+                          accFtpSynchronizationStatus === "Schedule unavailable"
+                            ? "warning"
+                            : "success"
+                        }
+                      >
+                        <AlertTitle>Schedule Status</AlertTitle>
+                        {accFtpSynchronizationStatus}
+                      </Alert>
+                    </Grid>
+                    {accFtpSynchronizationStatus ===
+                      "Synchronization Confirmed" && (
+                      <Grid item xs={12} sm={6}>
+                        <Alert severity={"info"}>
+                          <AlertTitle>Last sync time</AlertTitle>
+                          {lastSync === undefined ? "Never" : lastSync}
+                        </Alert>
+                      </Grid>
+                    )}
+                  </Grid>
+                </CardContent>
+                <CardActions
+                  sx={{ display: "flex", justifyContent: "flex-end" }}
+                >
+                  <Button
+                    disabled={
+                      selectedAccFolder === undefined ||
+                      selectedFtpFolder === undefined ||
+                      synchronizationAccFtpInProgress === true
+                    }
+                    onClick={
+                      accFtpSynchronizationStatus ===
+                      "Synchronization Confirmed"
+                        ? handleCancelSynchronization
+                        : handleConfirmSynchronization
+                    }
+                  >
+                    {accFtpSynchronizationStatus === "Synchronization Confirmed"
+                      ? "CANCEL SCHEDULE"
+                      : "CONFIRM SCHEDULE"}
+                  </Button>
+                </CardActions>
+              </Card>
+            </Grid>
+          )}
       </Grid>
     </Box>
   );
