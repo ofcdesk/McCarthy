@@ -1,4 +1,7 @@
 import { withSessionRoute } from "lib/withSession";
+import getConfig from "next/config";
+const { serverRuntimeConfig } = getConfig();
+const { stopCron, resetSynchronizationConfig } = serverRuntimeConfig;
 
 const handler = async (req, res) => {
   const user = req.session.user;
@@ -7,15 +10,8 @@ const handler = async (req, res) => {
     return;
   }
 
-  /**await store.init({ writeQueue: true });
-
-  await store.set("syncHubId", req.body.hubId);
-  await store.set("syncProjectId", req.body.projectId);
-  await store.set("syncAccFolderPath", req.body.accFolderPath);
-  await store.set("syncFTPFolderPath", req.body.ftpFolderPath);
-  await store.set("syncInterval", req.body.interval);
-  await store.set("syncWeekDay", req.body.weekDay);
-  await store.set("syncHour", req.body.hour);*/
+  stopCron();
+  await resetSynchronizationConfig();
 
   res.send("Success");
 };

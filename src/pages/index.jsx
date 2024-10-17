@@ -98,6 +98,8 @@ export default function ConfigurePage() {
 
   const [searchProjectByAccProcoreText, setSearchProjectByAccProcoreText] =
     useState("");
+  const [searchProjectByProcoreText, setSearchProjectByProcoreText] =
+    useState("");
   const [selectedAccProcoreProject, setSelectedAccProcoreProject] =
     useState(null);
   const [accProcoreSynchronizationStatus, setAccProcoreSynchronizationStatus] =
@@ -113,6 +115,9 @@ export default function ConfigurePage() {
     synchronizationAccProcoreInProgress,
     setSynchronizationAccProcoreInProgress,
   ] = useState(false);
+  const [procoreProjects, setProcoreProjects] = useState([]);
+  const [selectedProcoreProject, setSelectedProcoreProject] = useState(null);
+  const [lastSyncProcore, setLastSyncProcore] = useState(undefined);
 
   useEffect(() => {
     fetchData();
@@ -549,7 +554,7 @@ export default function ConfigurePage() {
     }
   };
 
-  const accProjectSelected = (event, project) => {
+  const accFtpProjectSelected = (event, project) => {
     setSelectedAccFtpProject(project);
     console.log(project);
   };
@@ -621,6 +626,68 @@ export default function ConfigurePage() {
     setFetching(false);
   };
 
+  const accProcoreProjectSelected = (event, project) => {
+    setSelectedAccProcoreProject(project);
+    console.log(project);
+  };
+
+  const procoreProjectSelected = (event, project) => {
+    setSelectedProcoreProject(project);
+    console.log(project);
+  };
+
+  const handleProcoreScheduleIntervalChange = (event) => {
+    const {
+      target: { value },
+    } = event;
+    setScheduleAccProcoreInterval(value);
+  };
+
+  const handleProcoreIntervalHourChange = (event) => {
+    const {
+      target: { value },
+    } = event;
+    setIntervalAccProcoreHour(value);
+  };
+
+  const handleProcoreConfirmSynchronization = async () => {
+    setFetchingText("Confirming Synchronization");
+    setFetching(true);
+    try {
+      await axios.post("/api/confirm-synchronization-procore", {
+        hubId: selectedAccProcoreProject.relationships.hub.data.id,
+        projectId: selectedAccProcoreProject.id,
+        projectName: selectedAccProcoreProject.label,
+        interval: scheduleAccProcoreInterval,
+        hour: intervalAccProcoreHour,
+        procoreProjectId: selectedProcoreProject.id,
+        procoreProjectName: selectedProcoreProject.label,
+      });
+      setAccProcoreSynchronizationStatus("Synchronization Confirmed");
+    } catch (err) {
+      console.log("Error confirming synchronization");
+      console.log(err);
+      setAccFtpSynchronizationStatus("Error confirming synchronization");
+    }
+    setFetching(false);
+  };
+
+  const handleProcoreCancelSynchronization = async () => {
+    setFetchingText("Canceling Synchronization");
+    setFetching(true);
+    try {
+      await axios.post("/api/cancel-synchronization-procore");
+      setAccProcoreSynchronizationStatus(
+        "You need to select an ACC project and a Procore project to schedule the synchronization interval and hit the CONFIRM SCHEDULE button"
+      );
+    } catch (err) {
+      console.log("Error canceling synchronization");
+      console.log(err);
+      setAccFtpSynchronizationStatus("Error canceling synchronization");
+    }
+    setFetching(false);
+  };
+
   const handleSyncNowPress = async () => {
     try {
       await axios.post("/api/set-last-sync-time", {
@@ -653,10 +720,6 @@ export default function ConfigurePage() {
     }
   };
 
-  const handleCloseInProgressSynchronization = () => {
-    setSynchronizationAccFtpInProgress(false);
-  };
-
   const handleProjectSelectorClick = async () => {
     if (accProjects.length === 0) {
       setFetchingText("Loading ACC Projects");
@@ -669,6 +732,20 @@ export default function ConfigurePage() {
       setAccProjects(
         response.map((project) => {
           return { ...project, label: project.attributes.name };
+        })
+      );
+      setFetching(false);
+    }
+  };
+
+  const handleProcoreProjectSelectorClick = async () => {
+    if (procoreProjects.length === 0) {
+      setFetchingText("Loading Procore Projects");
+      setFetching(true);
+      const response = (await axios.get("/api/procore-projects")).data;
+      setProcoreProjects(
+        response.map((project) => {
+          return { ...project, label: project.name };
         })
       );
       setFetching(false);
@@ -1018,7 +1095,7 @@ export default function ConfigurePage() {
                                   )
                               )
                         }
-                        onChange={accProjectSelected}
+                        onChange={accFtpProjectSelected}
                         inputValue={searchProjectByAccFtpText}
                         onInputChange={(event, newInputValue) => {
                           setSearchProjectByAccFtpText(newInputValue);
@@ -1274,8 +1351,7 @@ export default function ConfigurePage() {
             </Grid>
           )}
 
-        {false &&
-          synchronizationAccProcoreInProgress === false &&
+        {synchronizationAccProcoreInProgress === false &&
           currentUserName !== undefined && (
             <Grid item xs={12}>
               <Card>
@@ -1305,29 +1381,29 @@ export default function ConfigurePage() {
                         variant="outlined"
                         disablePortal
                         disabled={
-                          accFtpSynchronizationStatus ===
+                          accProcoreSynchronizationStatus ===
                           "Synchronization Confirmed"
                         }
                         value={
-                          selectedAccFtpProject !== null
-                            ? selectedAccFtpProject.label
+                          selectedAccProcoreProject !== null
+                            ? selectedAccProcoreProject.label
                             : ""
                         }
                         options={
-                          searchProjectByAccFtpText.length === 0
+                          searchProjectByAccProcoreText.length === 0
                             ? accProjects
                             : accProjects.filter((project) =>
                                 project.label
                                   .toLowerCase()
                                   .includes(
-                                    searchProjectByAccFtpText.toLowerCase()
+                                    searchProjectByAccProcoreText.toLowerCase()
                                   )
                               )
                         }
-                        onChange={accProjectSelected}
-                        inputValue={searchProjectByAccFtpText}
+                        onChange={accProcoreProjectSelected}
+                        inputValue={searchProjectByAccProcoreText}
                         onInputChange={(event, newInputValue) => {
-                          setSearchProjectByAccFtpText(newInputValue);
+                          setSearchProjectByAccProcoreText(newInputValue);
                         }}
                         onOpen={handleProjectSelectorClick}
                         renderInput={(params) => (
@@ -1351,31 +1427,31 @@ export default function ConfigurePage() {
                         variant="outlined"
                         disablePortal
                         disabled={
-                          accFtpSynchronizationStatus ===
+                          accProcoreSynchronizationStatus ===
                           "Synchronization Confirmed"
                         }
                         value={
-                          selectedAccFtpProject !== null
-                            ? selectedAccFtpProject.label
+                          selectedProcoreProject !== null
+                            ? selectedProcoreProject.label
                             : ""
                         }
                         options={
-                          searchProjectByAccFtpText.length === 0
-                            ? accProjects
-                            : accProjects.filter((project) =>
+                          searchProjectByProcoreText.length === 0
+                            ? procoreProjects
+                            : procoreProjects.filter((project) =>
                                 project.label
                                   .toLowerCase()
                                   .includes(
-                                    searchProjectByAccFtpText.toLowerCase()
+                                    searchProjectByProcoreText.toLowerCase()
                                   )
                               )
                         }
-                        onChange={accProjectSelected}
-                        inputValue={searchProjectByAccFtpText}
+                        onChange={procoreProjectSelected}
+                        inputValue={searchProjectByProcoreText}
                         onInputChange={(event, newInputValue) => {
-                          setSearchProjectByAccFtpText(newInputValue);
+                          setSearchProjectByProcoreText(newInputValue);
                         }}
-                        onOpen={handleProjectSelectorClick}
+                        //onOpen={handleProcoreProjectSelectorClick}
                         renderInput={(params) => (
                           <TextField
                             {...params}
@@ -1404,7 +1480,7 @@ export default function ConfigurePage() {
                     container
                     sx={{ display: "flex", justifyContent: "center" }}
                   >
-                    <Grid item xs={scheduleAccFtpInterval === "WEEKLY" ? 4 : 6}>
+                    <Grid item xs={6}>
                       <FormControl fullWidth>
                         <InputLabel id="select-schedule-interval-label">
                           Interval
@@ -1416,71 +1492,20 @@ export default function ConfigurePage() {
                           size="medium"
                           fullWidth
                           input={<OutlinedInput label="Interval" />}
-                          value={scheduleAccFtpInterval}
-                          onChange={handleScheduleIntervalChange}
+                          value={scheduleAccProcoreInterval}
+                          onChange={handleProcoreScheduleIntervalChange}
                           disabled={
-                            accFtpSynchronizationStatus ===
+                            accProcoreSynchronizationStatus ===
                             "Synchronization Confirmed"
                           }
                         >
                           <MenuItem value={"EVERY_X_HOUR"} key={0}>
                             EVERY X HOURS
                           </MenuItem>
-                          <MenuItem value={"DAILY"} key={0}>
-                            DAILY
-                          </MenuItem>
-                          <MenuItem value={"WEEKLY"} key={1}>
-                            WEEKLY
-                          </MenuItem>
                         </Select>
                       </FormControl>
                     </Grid>
-                    {scheduleAccFtpInterval === "WEEKLY" && (
-                      <Grid item xs={4}>
-                        <FormControl fullWidth>
-                          <InputLabel id="select-schedule-weekday-label">
-                            Week Day
-                          </InputLabel>
-                          <Select
-                            labelId="select-schedule-weekday-label"
-                            id="select-schedule-weekday"
-                            color="primary"
-                            size="medium"
-                            fullWidth
-                            input={<OutlinedInput label="Week Day" />}
-                            value={intervalAccFtpWeekDay}
-                            onChange={handleIntervalWeekdayChange}
-                            disabled={
-                              accFtpSynchronizationStatus ===
-                              "Synchronization Confirmed"
-                            }
-                          >
-                            <MenuItem value={"Sunday"} key={0}>
-                              Sunday
-                            </MenuItem>
-                            <MenuItem value={"Monday"} key={1}>
-                              Monday
-                            </MenuItem>
-                            <MenuItem value={"Tuesday"} key={2}>
-                              Tuesday
-                            </MenuItem>
-                            <MenuItem value={"Wednesday"} key={3}>
-                              Wednesday
-                            </MenuItem>
-                            <MenuItem value={"Thursday"} key={4}>
-                              Thursday
-                            </MenuItem>
-                            <MenuItem value={"Friday"} key={5}>
-                              Friday
-                            </MenuItem>
-                            <MenuItem value={"Saturday"} key={6}>
-                              Saturday
-                            </MenuItem>
-                          </Select>
-                        </FormControl>
-                      </Grid>
-                    )}
-                    <Grid item xs={scheduleAccFtpInterval === "WEEKLY" ? 4 : 6}>
+                    <Grid item xs={6}>
                       <FormControl fullWidth>
                         <InputLabel id="select-schedule-hour-label">
                           Hour
@@ -1492,18 +1517,20 @@ export default function ConfigurePage() {
                           size="medium"
                           fullWidth
                           input={<OutlinedInput label="Hour" />}
-                          value={intervalAccFtpHour}
-                          onChange={handleIntervalHourChange}
+                          value={intervalAccProcoreHour}
+                          onChange={handleProcoreIntervalHourChange}
                           disabled={
-                            accFtpSynchronizationStatus ===
+                            accProcoreSynchronizationStatus ===
                             "Synchronization Confirmed"
                           }
                         >
-                          {hours.map((hour, index) => (
-                            <MenuItem key={index} value={hour}>
-                              {hour}
-                            </MenuItem>
-                          ))}
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(
+                            (hour, index) => (
+                              <MenuItem key={index} value={hour}>
+                                {hour}
+                              </MenuItem>
+                            )
+                          )}
                         </Select>
                       </FormControl>
                     </Grid>
@@ -1511,7 +1538,7 @@ export default function ConfigurePage() {
                       item
                       xs={12}
                       sm={
-                        accFtpSynchronizationStatus ===
+                        accProcoreSynchronizationStatus ===
                         "Synchronization Confirmed"
                           ? 6
                           : 12
@@ -1519,23 +1546,24 @@ export default function ConfigurePage() {
                     >
                       <Alert
                         severity={
-                          accFtpSynchronizationStatus ===
-                            "You need to select an ACC project and a FTP folder to schedule the synchronization interval and hit the CONFIRM SCHEDULE button" ||
-                          accFtpSynchronizationStatus === "Schedule unavailable"
+                          accProcoreSynchronizationStatus ===
+                            "You need to select an ACC project and a Procore project to schedule the synchronization interval and hit the CONFIRM SCHEDULE button" ||
+                          accProcoreSynchronizationStatus ===
+                            "Schedule unavailable"
                             ? "warning"
                             : "success"
                         }
                       >
                         <AlertTitle>Schedule Status</AlertTitle>
-                        {accFtpSynchronizationStatus}
+                        {accProcoreSynchronizationStatus}
                       </Alert>
                     </Grid>
-                    {accFtpSynchronizationStatus ===
+                    {accProcoreSynchronizationStatus ===
                       "Synchronization Confirmed" && (
                       <Grid item xs={12} sm={6}>
                         <Alert severity={"info"}>
                           <AlertTitle>Last sync time</AlertTitle>
-                          {lastSync === undefined ? "Never" : lastSync}
+                          {lastSyncProcore === undefined ? "Never" : lastSync}
                         </Alert>
                       </Grid>
                     )}
@@ -1546,18 +1574,20 @@ export default function ConfigurePage() {
                 >
                   <Button
                     disabled={
-                      selectedAccFolder === undefined ||
-                      selectedFtpFolder === undefined ||
-                      synchronizationAccFtpInProgress === true
+                      true ||
+                      selectedAccProcoreProject === undefined ||
+                      selectedProcoreProject === undefined ||
+                      synchronizationAccProcoreInProgress === true
                     }
                     onClick={
-                      accFtpSynchronizationStatus ===
+                      accProcoreSynchronizationStatus ===
                       "Synchronization Confirmed"
-                        ? handleCancelSynchronization
-                        : handleConfirmSynchronization
+                        ? handleProcoreCancelSynchronization
+                        : handleProcoreConfirmSynchronization
                     }
                   >
-                    {accFtpSynchronizationStatus === "Synchronization Confirmed"
+                    {accProcoreSynchronizationStatus ===
+                    "Synchronization Confirmed"
                       ? "CANCEL SCHEDULE"
                       : "CONFIRM SCHEDULE"}
                   </Button>

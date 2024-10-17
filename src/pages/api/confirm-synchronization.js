@@ -1,7 +1,7 @@
 import { withSessionRoute } from "lib/withSession";
 import getConfig from "next/config";
 const { serverRuntimeConfig } = getConfig();
-const { setSynchronizationConfig } = serverRuntimeConfig;
+const { setSynchronizationConfig, setCron } = serverRuntimeConfig;
 
 const handler = async (req, res) => {
   const user = req.session.user;
@@ -20,6 +20,8 @@ const handler = async (req, res) => {
     req.body.weekDay,
     req.body.hour
   );
+
+  setCron(req.body.interval === "DAILY", req.body.hour, req.body.weekDay);
 
   res.send("Success");
 };
